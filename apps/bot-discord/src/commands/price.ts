@@ -1,6 +1,13 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { getAssetPrice } from '@leradar/market-data';
-import { createErrorEmbed, createMarketEmbed, EMBED_COLORS, formatNumber, formatUsd } from '../utils/embedFactory.js';
+import {
+  createErrorEmbed,
+  createMarketEmbed,
+  EMBED_COLORS,
+  formatNumber,
+  formatUsd,
+} from '../utils/embedFactory.js';
+import { logger } from '../utils/logger.js';
 
 function getReading(asset: string, change24h: number | null): string {
   if (asset === 'vix' && (change24h ?? 0) > 1) return 'Volatilité en hausse sur les marchés.';
@@ -48,30 +55,64 @@ export const priceCommand = {
         return;
       }
 
+      if (data.status === 'unavailable' || data.price === null || Number.isNaN(data.price)) {
+        logger.warn(
+          {
+            requestedAsset: asset,
+            provider: data.source,
+            status: data.status,
+            note: data.note,
+          },
+          'Prix indisponible pour actif demandé',
+        );
+        await interaction.reply({
+          embeds: [createErrorEmbed('Donnée momentanément indisponible pour cet actif.')],
+        });
+        return;
+      }
+
       const score = getScore(data.change24h);
+      const fields = [
+        { name: '💰 Prix actuel', value: formatUsd(data.price), inline: true },
+        { name: '📊 Variation', value: `${formatNumber(data.change24h)}%`, inline: true },
+        { name: '📉 Plus bas jour', value: formatUsd(data.dayLow), inline: true },
+        { name: '📈 Plus haut jour', value: formatUsd(data.dayHigh), inline: true },
+        { name: '📦 Volume', value: formatNumber(data.volume, 0), inline: true },
+        { name: '🌍 Source', value: data.source, inline: true },
+        {
+          name: '🕒 Mise à jour',
+          value: `<t:${Math.floor(new Date(data.timestamp).getTime() / 1000)}:R>`,
+          inline: true,
+        },
+      ];
+
+      if (data.status !== 'live') {
+        fields.push({
+          name: '⚠️ Statut de la donnée',
+          value: data.status === 'delayed' ? 'Donnée différée' : 'Donnée indisponible',
+          inline: true,
+        });
+      }
+
       const embed = createMarketEmbed({
         title: `📈 Fiche Marché • ${data.displayName}`,
         description: `Vue instantanée Le Radar\n${getReading(data.asset, data.change24h)}\n${score}`,
         color: colorFromChange(data.change24h),
-        fields: [
-          { name: '💰 Prix actuel', value: formatUsd(data.price), inline: true },
-          { name: '📊 Variation', value: `${formatNumber(data.change24h)}%`, inline: true },
-          { name: '📉 Plus bas jour', value: formatUsd(data.dayLow), inline: true },
-          { name: '📈 Plus haut jour', value: formatUsd(data.dayHigh), inline: true },
-          { name: '📦 Volume', value: formatNumber(data.volume, 0), inline: true },
-          { name: '🌍 Source', value: data.source, inline: true },
-          {
-            name: '🕒 Mise à jour',
-            value: `<t:${Math.floor(new Date(data.timestamp).getTime() / 1000)}:R>`,
-            inline: true,
-          },
-        ],
+        fields,
       });
 
       await interaction.reply({ embeds: [embed] });
-    } catch {
+    } catch (error) {
+      logger.error(
+        {
+          requestedAsset: asset,
+          provider: 'resolver',
+          errorMessage: error instanceof Error ? error.message : 'Erreur inconnue',
+        },
+        'Erreur technique lors de la récupération du prix',
+      );
       await interaction.reply({
-        embeds: [createErrorEmbed('🔄 Donnée momentanément indisponible.')],
+        embeds: [createErrorEmbed('Donnée momentanément indisponible pour cet actif.')],
       });
     }
   },

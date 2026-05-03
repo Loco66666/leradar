@@ -1,6 +1,10 @@
 import { resolveMarketSymbol } from '../marketSymbolMap.js';
 import { getCryptoPrice } from './coingecko.js';
-import { getYahooQuote, UnifiedMarketQuote } from './yahoo.js';
+import { getForexQuote } from './forex.js';
+import { getIndicesQuote } from './indices.js';
+import { getMacroQuote } from './macro.js';
+import { getMetalsQuote } from './metals.js';
+import { UnifiedMarketQuote } from './types.js';
 
 export async function getUnifiedQuote(asset: string): Promise<UnifiedMarketQuote | null> {
   const symbol = resolveMarketSymbol(asset);
@@ -18,8 +22,12 @@ export async function getUnifiedQuote(asset: string): Promise<UnifiedMarketQuote
       volume: c.volume,
       source: c.source,
       timestamp: c.timestamp,
+      status: 'live',
     };
   }
 
-  return getYahooQuote(symbol.ticker, symbol.displayName);
+  if (symbol.kind === 'forex') return getForexQuote(symbol.ticker, symbol.displayName);
+  if (symbol.kind === 'metals') return getMetalsQuote(symbol.ticker, symbol.displayName, symbol.key);
+  if (symbol.kind === 'indices') return getIndicesQuote(symbol.ticker, symbol.displayName, symbol.key);
+  return getMacroQuote(symbol.ticker, symbol.displayName, symbol.key);
 }
