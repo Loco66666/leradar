@@ -1,0 +1,22 @@
+{
+  "name": "@leradar/ai-engine",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/analyseMarket.js",
+  "types": "dist/analyseMarket.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/analyseMarket.d.ts",
+      "default": "./dist/analyseMarket.js"
+    },
+    "./safety": {
+      "types": "./dist/safety.d.ts",
+      "default": "./dist/safety.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist"
+  }
+}
