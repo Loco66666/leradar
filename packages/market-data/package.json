@@ -1,0 +1,26 @@
+{
+  "name": "@leradar/market-data",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/marketService.js",
+  "types": "dist/marketService.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/marketService.d.ts",
+      "default": "./dist/marketService.js"
+    },
+    "./providers/*": {
+      "types": "./dist/providers/*.d.ts",
+      "default": "./dist/providers/*.js"
+    },
+    "./marketSymbolMap": {
+      "types": "./dist/marketSymbolMap.d.ts",
+      "default": "./dist/marketSymbolMap.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist"
+  }
+}
