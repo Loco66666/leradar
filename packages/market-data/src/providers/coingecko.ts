@@ -1,4 +1,6 @@
-export async function getCryptoPrice(symbol: 'bitcoin' | 'ethereum') {
+export async function getCryptoPrice(
+  symbol: 'bitcoin' | 'ethereum' | 'solana' | 'binancecoin' | 'ripple',
+) {
   const response = await fetch(
     `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${symbol}`,
   );

@@ -1,12 +1,27 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { getAssetPrice } from '@leradar/market-data';
-import { createErrorEmbed, createMarketEmbed, formatNumber, formatUsd } from '../utils/embedFactory.js';
+import { createErrorEmbed, createMarketEmbed, EMBED_COLORS, formatNumber, formatUsd } from '../utils/embedFactory.js';
 
-function marketInterpretation(change24h: number | null): string {
-  if (change24h === null) return 'Marché stable pour le moment.';
-  if (change24h > 0.2) return 'Tendance du jour positive.';
-  if (change24h < -0.2) return 'Pression vendeuse à court terme.';
-  return 'Marché stable pour le moment.';
+function getReading(asset: string, change24h: number | null): string {
+  if (asset === 'vix' && (change24h ?? 0) > 1) return 'Volatilité en hausse sur les marchés.';
+  if (asset === 'dxy' && (change24h ?? 0) > 0.3) return 'Dollar soutenu actuellement.';
+  if (change24h !== null && change24h > 1) return 'Tendance positive observée aujourd’hui.';
+  if (change24h !== null && change24h < -1) return 'Pression vendeuse à court terme.';
+  return 'Marché relativement stable actuellement.';
+}
+
+function getScore(change24h: number | null): '🟢 Haussier' | '🔴 Baissier' | '⚪ Neutre' {
+  if (change24h === null) return '⚪ Neutre';
+  if (change24h > 0.3) return '🟢 Haussier';
+  if (change24h < -0.3) return '🔴 Baissier';
+  return '⚪ Neutre';
+}
+
+function colorFromChange(change24h: number | null) {
+  if (change24h === null) return EMBED_COLORS.market;
+  if (change24h > 0.05) return EMBED_COLORS.success;
+  if (change24h < -0.05) return EMBED_COLORS.error;
+  return EMBED_COLORS.market;
 }
 
 export const priceCommand = {
@@ -14,26 +29,50 @@ export const priceCommand = {
     .setName('price')
     .setDescription("Prix d'un actif")
     .addStringOption((o) =>
-      o.setName('asset').setDescription('Actif (ex: btc, eth, gold)').setRequired(true),
+      o
+        .setName('asset')
+        .setDescription('Exemples: btc, gold, nasdaq, eurusd, dxy')
+        .setRequired(true),
     ),
   async execute(interaction: ChatInputCommandInteraction) {
     const asset = interaction.options.getString('asset', true);
+
     try {
       const data = await getAssetPrice(asset);
+      if (!data) {
+        await interaction.reply({
+          embeds: [
+            createErrorEmbed('Actif non reconnu.\n\nExemples : btc, gold, nasdaq, eurusd, dxy'),
+          ],
+        });
+        return;
+      }
+
+      const score = getScore(data.change24h);
       const embed = createMarketEmbed({
-        title: `📈 Fiche Marché • ${data.asset}`,
-        description: marketInterpretation(data.change24h),
+        title: `📈 Fiche Marché • ${data.displayName}`,
+        description: `Vue instantanée Le Radar\n${getReading(data.asset, data.change24h)}\n${score}`,
+        color: colorFromChange(data.change24h),
         fields: [
           { name: '💰 Prix actuel', value: formatUsd(data.price), inline: true },
-          { name: '📈 Variation 24h', value: `${formatNumber(data.change24h)}%`, inline: true },
-          { name: '📊 Volume', value: formatNumber(data.volume, 0), inline: true },
+          { name: '📊 Variation', value: `${formatNumber(data.change24h)}%`, inline: true },
+          { name: '📉 Plus bas jour', value: formatUsd(data.dayLow), inline: true },
+          { name: '📈 Plus haut jour', value: formatUsd(data.dayHigh), inline: true },
+          { name: '📦 Volume', value: formatNumber(data.volume, 0), inline: true },
           { name: '🌍 Source', value: data.source, inline: true },
-          { name: '🕒 Dernière mise à jour', value: `<t:${Math.floor(new Date(data.timestamp).getTime() / 1000)}:R>`, inline: true },
+          {
+            name: '🕒 Mise à jour',
+            value: `<t:${Math.floor(new Date(data.timestamp).getTime() / 1000)}:R>`,
+            inline: true,
+          },
         ],
       });
+
       await interaction.reply({ embeds: [embed] });
     } catch {
-      await interaction.reply({ embeds: [createErrorEmbed('Impossible de récupérer le prix pour cet actif.')] });
+      await interaction.reply({
+        embeds: [createErrorEmbed('🔄 Donnée momentanément indisponible.')],
+      });
     }
   },
 };

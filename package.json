@@ -12,8 +12,7 @@
     "start": "npm run start -w @leradar/bot-discord",
     "lint": "npm run lint -w @leradar/bot-discord",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio",
-    "deploy-commands": "npm run deploy-commands -w @leradar/bot-discord"
+    "prisma:studio": "prisma studio"
   },
   "devDependencies": {
     "@types/node": "^22.15.17",

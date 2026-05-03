@@ -13,6 +13,10 @@
     "./providers/*": {
       "types": "./dist/providers/*.d.ts",
       "default": "./dist/providers/*.js"
+    },
+    "./marketSymbolMap": {
+      "types": "./dist/marketSymbolMap.d.ts",
+      "default": "./dist/marketSymbolMap.js"
     }
   },
   "scripts": {
