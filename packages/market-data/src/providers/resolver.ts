@@ -1,5 +1,6 @@
 import { resolveMarketSymbol } from '../marketSymbolMap.js';
 import { getCryptoQuote } from './crypto.js';
+import { getFmpIndexQuote } from './fmp.js';
 import { getTwelveDataQuote } from './twelveData.js';
 import { UnifiedMarketQuote } from './types.js';
 
@@ -9,6 +10,10 @@ export async function getUnifiedQuote(asset: string): Promise<UnifiedMarketQuote
 
   if (symbol.kind === 'crypto') {
     return getCryptoQuote(symbol.key, symbol.displayName, symbol.ticker);
+  }
+
+  if (symbol.kind === 'indices') {
+    return getFmpIndexQuote(symbol.key, symbol.displayName, symbol.ticker);
   }
 
   return getTwelveDataQuote(symbol.key, symbol.displayName, symbol.ticker);

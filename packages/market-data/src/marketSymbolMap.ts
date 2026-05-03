@@ -21,10 +21,11 @@ const SYMBOLS: Record<string, MarketSymbol> = {
   gbpusd: { key: 'gbpusd', displayName: 'GBP/USD', ticker: 'GBP/USD', kind: 'forex' },
   usdjpy: { key: 'usdjpy', displayName: 'USD/JPY', ticker: 'USD/JPY', kind: 'forex' },
 
-  nasdaq: { key: 'nasdaq', displayName: 'Nasdaq 100', ticker: 'NDX', kind: 'indices' },
-  sp500: { key: 'sp500', displayName: 'S&P 500', ticker: 'SPX', kind: 'indices' },
+  nasdaq: { key: 'nasdaq', displayName: 'NASDAQ Composite', ticker: '^IXIC', kind: 'indices' },
+  sp500: { key: 'sp500', displayName: 'S&P 500', ticker: '^GSPC', kind: 'indices' },
+  dowjones: { key: 'dowjones', displayName: 'Dow Jones Industrial Average', ticker: '^DJI', kind: 'indices' },
+  vix: { key: 'vix', displayName: 'CBOE Volatility Index (VIX)', ticker: '^VIX', kind: 'indices' },
   dxy: { key: 'dxy', displayName: 'US Dollar Index (DXY)', ticker: 'DXY', kind: 'indices' },
-  vix: { key: 'vix', displayName: 'Volatility Index (VIX)', ticker: 'VIX', kind: 'indices' },
 };
 
 const ALIASES: Record<string, string> = {
@@ -33,7 +34,12 @@ const ALIASES: Record<string, string> = {
   xau: 'gold',
   xag: 'silver',
   ndx: 'nasdaq',
+  ixic: 'nasdaq',
   spx: 'sp500',
+  gspc: 'sp500',
+  dji: 'dowjones',
+  dow: 'dowjones',
+  dj30: 'dowjones',
 };
 
 export function resolveMarketSymbol(input: string): MarketSymbol | null {
