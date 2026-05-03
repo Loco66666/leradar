@@ -1,0 +1,7 @@
+services:
+  leradar:
+    build: .
+    env_file: .env
+    volumes:
+      - .:/app
+    command: npm run dev

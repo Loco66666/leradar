@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  discordId String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Guild {
+  id        String   @id @default(cuid())
+  discordId String   @unique
+  createdAt DateTime @default(now())
+}
+
+model AlertConfig {
+  id               String   @id @default(cuid())
+  guildDiscordId   String
+  thresholdPercent Float    @default(2)
+  createdAt        DateTime @default(now())
+}
+
+model MarketSnapshot {
+  id        String   @id @default(cuid())
+  asset     String
+  price     Float
+  source    String
+  createdAt DateTime @default(now())
+}
+
+model EducationDocument {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  createdAt DateTime @default(now())
+}
+
+model TradeJournalEntry {
+  id        String   @id @default(cuid())
+  title     String
+  notes     String?
+  createdAt DateTime @default(now())
+}
