@@ -15,9 +15,9 @@ type TwelveDataQuote = {
 };
 
 const SYMBOL_CANDIDATES: Record<string, string[]> = {
-  nasdaq: ['NDX', 'IXIC', 'QQQ'],
-  sp500: ['SPX', 'GSPC', 'SPY'],
-  vix: ['VIXY'],
+  nasdaq: ['NDX', 'IXIC'],
+  sp500: ['SPX', 'GSPC'],
+  vix: ['VIX'],
   dxy: ['DXY'],
 };
 
@@ -25,6 +25,32 @@ function toNumber(value: string | number | undefined): number | null {
   if (value === undefined || value === null || value === '') return null;
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
+}
+
+
+
+function detectMarketStatus(asset: string): 'live' | 'delayed' | 'closed' {
+  const now = new Date();
+  const day = now.getUTCDay();   // 0 dimanche, 6 samedi
+  const hour = now.getUTCHours();
+
+  if (asset in {'btc':1,'eth':1,'sol':1,'bnb':1,'xrp':1}) {
+    return 'live';
+  }
+
+  if (['gold','silver','eurusd','gbpusd','usdjpy'].includes(asset)) {
+    if (day === 6) return 'closed';
+    if (day === 0 && hour < 22) return 'closed';
+    if (day === 5 && hour >= 22) return 'closed';
+    return 'delayed';
+  }
+
+  if (['nasdaq','sp500','vix','dxy'].includes(asset)) {
+    if (day === 0 || day === 6) return 'closed';
+    return 'delayed';
+  }
+
+  return 'delayed';
 }
 
 function normalizeProviderTimestamp(value?: unknown): string {
@@ -104,7 +130,7 @@ export async function getTwelveDataQuote(
         volume: toNumber(data.volume),
         source: `Twelve Data (${candidate})`,
         timestamp: normalizeProviderTimestamp(data.datetime ?? data.timestamp),
-        status: 'delayed',
+        status: detectMarketStatus(asset),
       };
     } catch (error) {
       lastError = error instanceof Error ? error.message : 'Erreur inconnue Twelve Data';
