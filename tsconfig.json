@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/market-data" },
+    { "path": "packages/ai-engine" },
+    { "path": "packages/database" },
+    { "path": "apps/bot-discord" }
+  ]
+}

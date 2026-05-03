@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @leradar/bot-discord",
+    "build": "tsc -b",
     "dev": "npm run dev -w @leradar/bot-discord",
     "start": "npm run start -w @leradar/bot-discord",
     "lint": "npm run lint -w @leradar/bot-discord",

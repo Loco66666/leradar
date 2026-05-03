@@ -8,6 +8,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "outDir": "dist"
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
   }
 }

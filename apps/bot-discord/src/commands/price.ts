@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { getAssetPrice } from '../../../../packages/market-data/src/marketService.js';
+import { getAssetPrice } from '@leradar/market-data';
 
 export const priceCommand = {
   data: new SlashCommandBuilder().setName('price').setDescription('Prix d\'un actif').addStringOption((o)=>o.setName('asset').setDescription('Actif').setRequired(true)),

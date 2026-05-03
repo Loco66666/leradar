@@ -1,5 +1,5 @@
-import { prisma } from '../../../../packages/database/src/index.js';
-import { getMarketPulse } from '../../../../packages/market-data/src/marketService.js';
+import { prisma } from '@leradar/database';
+import { getMarketPulse } from '@leradar/market-data';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
