@@ -14,17 +14,17 @@ const SYMBOLS: Record<string, MarketSymbol> = {
   bnb: { key: 'bnb', displayName: 'BNB', ticker: 'binancecoin', kind: 'crypto' },
   xrp: { key: 'xrp', displayName: 'XRP', ticker: 'ripple', kind: 'crypto' },
 
-  gold: { key: 'gold', displayName: 'Or (Gold)', ticker: 'xauusd', kind: 'metals' },
-  silver: { key: 'silver', displayName: 'Argent (Silver)', ticker: 'xagusd', kind: 'metals' },
+  gold: { key: 'gold', displayName: 'Or (Gold)', ticker: 'XAU/USD', kind: 'metals' },
+  silver: { key: 'silver', displayName: 'Argent (Silver)', ticker: 'XAG/USD', kind: 'metals' },
 
-  eurusd: { key: 'eurusd', displayName: 'EUR/USD', ticker: 'eurusd', kind: 'forex' },
-  gbpusd: { key: 'gbpusd', displayName: 'GBP/USD', ticker: 'gbpusd', kind: 'forex' },
-  usdjpy: { key: 'usdjpy', displayName: 'USD/JPY', ticker: 'usdjpy', kind: 'forex' },
+  eurusd: { key: 'eurusd', displayName: 'EUR/USD', ticker: 'EUR/USD', kind: 'forex' },
+  gbpusd: { key: 'gbpusd', displayName: 'GBP/USD', ticker: 'GBP/USD', kind: 'forex' },
+  usdjpy: { key: 'usdjpy', displayName: 'USD/JPY', ticker: 'USD/JPY', kind: 'forex' },
 
-  nasdaq: { key: 'nasdaq', displayName: 'Nasdaq 100', ticker: '^ndq', kind: 'indices' },
-  sp500: { key: 'sp500', displayName: 'S&P 500', ticker: '^spx', kind: 'indices' },
-  dxy: { key: 'dxy', displayName: 'US Dollar Index (DXY)', ticker: 'dx.f', kind: 'indices' },
-  vix: { key: 'vix', displayName: 'Volatility Index (VIX)', ticker: '^vix', kind: 'indices' },
+  nasdaq: { key: 'nasdaq', displayName: 'Nasdaq 100', ticker: 'NDX', kind: 'indices' },
+  sp500: { key: 'sp500', displayName: 'S&P 500', ticker: 'SPX', kind: 'indices' },
+  dxy: { key: 'dxy', displayName: 'US Dollar Index (DXY)', ticker: 'DXY', kind: 'indices' },
+  vix: { key: 'vix', displayName: 'Volatility Index (VIX)', ticker: 'VIX', kind: 'indices' },
 };
 
 const ALIASES: Record<string, string> = {

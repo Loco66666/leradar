@@ -10,6 +10,14 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@leradar/ai-engine": ["packages/ai-engine/src/analyseMarket.ts"],
+      "@leradar/ai-engine/safety": ["packages/ai-engine/src/safety.ts"],
+      "@leradar/database": ["packages/database/src/index.ts"],
+      "@leradar/market-data": ["packages/market-data/src/marketService.ts"],
+      "@leradar/core": ["packages/core/src/index.ts"]
+    }
   }
 }
