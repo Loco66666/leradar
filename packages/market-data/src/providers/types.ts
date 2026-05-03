@@ -8,5 +8,5 @@ export type UnifiedMarketQuote = {
   volume: number | null;
   source: string;
   timestamp: string;
-  status: 'live' | 'delayed';
+  status: 'live' | 'delayed' | 'unavailable';
 };

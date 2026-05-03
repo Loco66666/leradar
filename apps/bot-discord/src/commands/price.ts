@@ -1,6 +1,7 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { getAssetPrice } from '@leradar/market-data';
 import { createErrorEmbed, createMarketEmbed, EMBED_COLORS, formatNumber, formatUsd } from '../utils/embedFactory.js';
+import { logger } from '../utils/logger.js';
 
 function getReading(asset: string, change24h: number | null): string {
   if (asset === 'vix' && (change24h ?? 0) > 1) return 'Volatilité en hausse sur les marchés.';
@@ -77,9 +78,10 @@ export const priceCommand = {
       });
 
       await interaction.reply({ embeds: [embed] });
-    } catch {
+    } catch (error) {
+      logger.error({ err: error, asset }, 'Échec récupération prix actif');
       await interaction.reply({
-        embeds: [createErrorEmbed('🔄 Donnée momentanément indisponible.')],
+        embeds: [createErrorEmbed('🔄 Donnée momentanément indisponible pour cet actif.')],
       });
     }
   },
