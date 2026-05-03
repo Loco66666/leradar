@@ -2,7 +2,8 @@ import { UnifiedMarketQuote } from './types.js';
 
 type TwelveDataQuote = {
   symbol?: string;
-  timestamp?: string;
+  datetime?: string;
+  timestamp?: string | number;
   close?: string;
   high?: string;
   low?: string;
@@ -13,21 +14,52 @@ type TwelveDataQuote = {
   message?: string;
 };
 
-const NASDAQ_CANDIDATES = ['NDX', 'NASDAQ'];
+const SYMBOL_CANDIDATES: Record<string, string[]> = {
+  nasdaq: ['NDX', 'IXIC', 'QQQ'],
+  sp500: ['SPX', 'GSPC', 'SPY'],
+  vix: ['VIXY'],
+  dxy: ['DXY'],
+};
 
-function toNumber(value: string | undefined): number | null {
-  if (!value) return null;
+function toNumber(value: string | number | undefined): number | null {
+  if (value === undefined || value === null || value === '') return null;
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
+}
+
+function normalizeProviderTimestamp(value?: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 1000000000) {
+    return new Date(value * 1000).toISOString();
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const raw = value.trim();
+
+    if (/^\d+$/.test(raw)) {
+      const unix = Number(raw);
+      if (Number.isFinite(unix) && unix > 1000000000) {
+        return new Date(unix * 1000).toISOString();
+      }
+    }
+
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime()) && parsed.getFullYear() > 2000) {
+      return parsed.toISOString();
+    }
+  }
+
+  return new Date().toISOString();
 }
 
 async function fetchTwelveData(symbol: string, apiKey: string): Promise<TwelveDataQuote> {
   const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(apiKey)}`;
   const response = await fetch(url);
   const payload = (await response.json()) as TwelveDataQuote;
+
   if (!response.ok) {
     throw new Error(payload.message ?? `Erreur Twelve Data (${response.status})`);
   }
+
   return payload;
 }
 
@@ -37,23 +69,26 @@ export async function getTwelveDataQuote(
   symbol: string,
 ): Promise<UnifiedMarketQuote> {
   const apiKey = process.env.TWELVE_DATA_API_KEY;
+
   if (!apiKey) {
     throw new Error('TWELVE_DATA_API_KEY est manquant');
   }
 
-  const candidates = asset === 'nasdaq' ? NASDAQ_CANDIDATES : [symbol];
+  const candidates = SYMBOL_CANDIDATES[asset] ?? [symbol];
   let lastError: string | null = null;
 
   for (const candidate of candidates) {
     try {
       const data = await fetchTwelveData(candidate, apiKey);
+
       if (data.status === 'error' || data.code || data.message) {
         throw new Error(data.message ?? `Erreur Twelve Data (${data.code ?? 'inconnue'})`);
       }
 
       const price = toNumber(data.close);
-      if (price === null) {
-        throw new Error('Prix invalide reçu depuis Twelve Data');
+
+      if (price === null || price <= 0) {
+        throw new Error(`Prix invalide reçu depuis Twelve Data pour ${candidate}`);
       }
 
       const prevClose = toNumber(data.previous_close);
@@ -67,12 +102,18 @@ export async function getTwelveDataQuote(
         dayLow: toNumber(data.low),
         dayHigh: toNumber(data.high),
         volume: toNumber(data.volume),
-        source: 'Twelve Data',
-        timestamp: data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString(),
-        status: 'live',
+        source: `Twelve Data (${candidate})`,
+        timestamp: normalizeProviderTimestamp(data.datetime ?? data.timestamp),
+        status: 'delayed',
       };
     } catch (error) {
       lastError = error instanceof Error ? error.message : 'Erreur inconnue Twelve Data';
+      console.error('[Le Radar][Twelve Data]', {
+        asset,
+        symbol: candidate,
+        provider: 'Twelve Data',
+        error: lastError,
+      });
     }
   }
 

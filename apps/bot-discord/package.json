@@ -12,9 +12,9 @@
     "deploy-commands": "tsx src/deployCommands.ts"
   },
   "dependencies": {
-    "@leradar/ai-engine": "1.0.0",
-    "@leradar/database": "1.0.0",
-    "@leradar/market-data": "1.0.0",
+    "@leradar/ai-engine": "workspace:*",
+    "@leradar/database": "workspace:*",
+    "@leradar/market-data": "workspace:*",
     "discord.js": "^14.19.3",
     "pino": "^9.6.0"
   },
