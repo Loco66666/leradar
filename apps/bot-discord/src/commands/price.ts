@@ -42,8 +42,15 @@ export const priceCommand = {
       if (!data) {
         await interaction.reply({
           embeds: [
-            createErrorEmbed('Actif non reconnu.\n\nExemples : btc, gold, nasdaq, eurusd, dxy'),
+            createErrorEmbed('Actif non reconnu.\n\nExemples : btc, eth, sol, bnb, xrp, gold, silver, eurusd, gbpusd, usdjpy, nasdaq, sp500, dxy, vix'),
           ],
+        });
+        return;
+      }
+
+      if (data.price === null) {
+        await interaction.reply({
+          embeds: [createErrorEmbed('🔄 Donnée momentanément indisponible pour cet actif.')],
         });
         return;
       }
@@ -51,7 +58,7 @@ export const priceCommand = {
       const score = getScore(data.change24h);
       const embed = createMarketEmbed({
         title: `📈 Fiche Marché • ${data.displayName}`,
-        description: `Vue instantanée Le Radar\n${getReading(data.asset, data.change24h)}\n${score}`,
+        description: `Vue instantanée Le Radar\n${score}\n${getReading(data.asset, data.change24h)}`,
         color: colorFromChange(data.change24h),
         fields: [
           { name: '💰 Prix actuel', value: formatUsd(data.price), inline: true },
@@ -65,6 +72,7 @@ export const priceCommand = {
             value: `<t:${Math.floor(new Date(data.timestamp).getTime() / 1000)}:R>`,
             inline: true,
           },
+          { name: '⚡ Statut', value: data.status, inline: true },
         ],
       });
 
