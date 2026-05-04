@@ -29,18 +29,30 @@ function getMoodFromScore(score: number): MarketMood {
   return 'mixed';
 }
 
-function getMoodLabel(mood: MarketMood): string {
-  switch (mood) {
-    case 'risk-on':
-      return 'environnement plutôt risk-on';
-    case 'risk-off':
-      return 'environnement plutôt risk-off';
-    case 'mixed':
-      return 'environnement mitigé';
-    case 'neutral':
-    default:
-      return 'environnement neutre';
+function buildSummary(mood: MarketMood, factors: string[], risks: string[]): string {
+  if (mood === 'risk-off') {
+    const mainRisks = risks.slice(0, 2).join(' ');
+    const nuance = factors.length > 0
+      ? ` Certains éléments restent constructifs, mais ils ne suffisent pas à inverser le biais global.`
+      : '';
+
+    return `Le marché penche défensif. ${mainRisks || 'La pression globale reste supérieure aux facteurs de soutien.'}${nuance}`;
   }
+
+  if (mood === 'risk-on') {
+    const mainFactors = factors.slice(0, 2).join(' ');
+    const nuance = risks.length > 0
+      ? ` Quelques risques restent présents, mais le biais global reste favorable au risque.`
+      : '';
+
+    return `Le marché montre un biais favorable au risque. ${mainFactors || 'Les actifs risqués restent globalement soutenus.'}${nuance}`;
+  }
+
+  if (mood === 'mixed') {
+    return `Le marché envoie des signaux contradictoires. Certains actifs restent soutenus, mais des risques persistent en parallèle.`;
+  }
+
+  return `Le marché ne montre pas encore de déséquilibre clair. Le contexte reste neutre à ce stade.`;
 }
 
 export function analyzeMarketContext(input: MarketContextInput): MarketIntelligenceResult {
@@ -82,7 +94,7 @@ export function analyzeMarketContext(input: MarketContextInput): MarketIntellige
 
   if (btcUp || ethUp) {
     score += 1;
-    factors.push('Les crypto-actifs montrent une dynamique positive.');
+    factors.push('Les crypto-actifs résistent mieux que le reste du marché.');
   }
 
   if (btcDown || ethDown) {
@@ -130,16 +142,11 @@ export function analyzeMarketContext(input: MarketContextInput): MarketIntellige
 
   const mood = getMoodFromScore(score);
 
-  const summary =
-    factors.length === 0 && risks.length === 0
-      ? 'Le marché ne montre pas encore de déséquilibre clair. Le contexte reste neutre à ce stade.'
-      : `Lecture Radar : ${getMoodLabel(mood)}. ${[...factors, ...risks][0]}`;
-
   return {
     mood,
     score,
     signals,
-    summary,
+    summary: buildSummary(mood, factors, risks),
     factors,
     risks,
   };
