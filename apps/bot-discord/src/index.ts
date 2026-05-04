@@ -9,8 +9,10 @@ import { marketPulseCommand } from './commands/marketPulse.js';
 import { newsCommand } from './commands/news.js';
 import { analyseCommand } from './commands/analyse.js';
 import { runMarketAlertsJob } from './jobs/marketAlertsJob.js';
+import { logger } from './utils/logger.js';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
 const commands = new Map([
   [helpCommand.data.name, helpCommand],
   [priceCommand.data.name, priceCommand],
@@ -20,8 +22,18 @@ const commands = new Map([
   [analyseCommand.data.name, analyseCommand],
 ]);
 
-client.once('ready', () => onReady(client));
+client.once('clientReady', () => {
+  onReady(client);
+
+  logger.info('[ALERTS] Job alertes marché démarré');
+
+  void runMarketAlertsJob(client);
+
+  setInterval(() => {
+    void runMarketAlertsJob(client);
+  }, 5 * 60 * 1000);
+});
+
 registerInteractionHandler(client, commands);
-setInterval(() => void runMarketAlertsJob(), 5 * 60 * 1000);
 
 void client.login(env.DISCORD_TOKEN);
