@@ -17,6 +17,10 @@
     "./marketSymbolMap": {
       "types": "./dist/marketSymbolMap.d.ts",
       "default": "./dist/marketSymbolMap.js"
+    },
+    "./assetRegistry": {
+      "types": "./dist/assetRegistry.d.ts",
+      "default": "./dist/assetRegistry.js"
     }
   },
   "scripts": {

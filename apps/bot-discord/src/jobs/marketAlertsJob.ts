@@ -1,6 +1,7 @@
 import { Client, TextChannel } from 'discord.js';
 import { prisma } from '@leradar/database';
 import { getAssetPrice } from '@leradar/market-data';
+import { getAlertAssets, type AssetRegistryItem } from '@leradar/market-data/assetRegistry';
 import {
   analyzeMarketContext,
   type AssetMoveInput,
@@ -10,8 +11,6 @@ import {
 import { env } from '../config/env.js';
 import { EMBED_COLORS, createWarningEmbed } from '../utils/embedFactory.js';
 import { logger } from '../utils/logger.js';
-
-const WATCHLIST = ['btc', 'eth', 'gold', 'eurusd', 'nasdaq', 'sp500', 'vix'];
 
 const COOLDOWN_MINUTES = 60;
 const lastAlertAt = new Map<string, number>();
@@ -29,16 +28,6 @@ type AlertCandidate = {
     label: string;
     color: (typeof EMBED_COLORS)[keyof typeof EMBED_COLORS];
   };
-};
-
-const ALERT_RULES: Record<string, AlertRule> = {
-  btc: { thresholdPercent: 1, strongPercent: 2.5, criticalPercent: 5 },
-  eth: { thresholdPercent: 1, strongPercent: 3, criticalPercent: 6 },
-  gold: { thresholdPercent: 0.5, strongPercent: 1.2, criticalPercent: 2.5 },
-  eurusd: { thresholdPercent: 0.25, strongPercent: 0.6, criticalPercent: 1.2 },
-  nasdaq: { thresholdPercent: 0.7, strongPercent: 1.5, criticalPercent: 3 },
-  sp500: { thresholdPercent: 0.7, strongPercent: 1.4, criticalPercent: 2.8 },
-  vix: { thresholdPercent: 5, strongPercent: 10, criticalPercent: 20 },
 };
 
 function shouldSkipStatus(status: string): boolean {
@@ -65,8 +54,16 @@ function formatPrice(asset: string, value: number): string {
   return `${formatted} $`;
 }
 
-function getRule(asset: string): AlertRule {
-  return ALERT_RULES[asset.toLowerCase()] ?? {
+function getRule(registryAsset?: AssetRegistryItem): AlertRule {
+  if (registryAsset) {
+    return {
+      thresholdPercent: registryAsset.thresholds.alert,
+      strongPercent: registryAsset.thresholds.strong,
+      criticalPercent: registryAsset.thresholds.critical,
+    };
+  }
+
+  return {
     thresholdPercent: env.ALERT_THRESHOLD_PERCENT,
     strongPercent: env.ALERT_THRESHOLD_PERCENT * 2,
     criticalPercent: env.ALERT_THRESHOLD_PERCENT * 4,
@@ -274,7 +271,8 @@ export async function runMarketAlertsJob(client: Client) {
   const scannedAssets: AssetMoveInput[] = [];
   const alertCandidates: AlertCandidate[] = [];
 
-  for (const assetName of WATCHLIST) {
+  for (const registryAsset of getAlertAssets()) {
+    const assetName = registryAsset.id;
     try {
       const asset = await getAssetPrice(assetName);
 
@@ -320,7 +318,7 @@ export async function runMarketAlertsJob(client: Client) {
 
       scannedAssets.push(move);
 
-      const rule = getRule(asset.asset);
+      const rule = getRule(registryAsset);
       const importance = getImportance(changeShortTerm, rule);
 
       logger.info(

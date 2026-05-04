@@ -6,9 +6,8 @@ import {
   type MarketIntelligenceResult,
 } from '@leradar/market-intelligence';
 import { getAssetPrice } from '@leradar/market-data';
+import { getMarketPulseAssets } from '@leradar/market-data/assetRegistry';
 import { createErrorEmbed, createMarketEmbed, formatUsd } from '../utils/embedFactory.js';
-
-const WATCHLIST = ['btc', 'eth', 'gold', 'eurusd', 'nasdaq', 'sp500', 'vix'];
 
 function formatPercent(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return 'N/A';
@@ -303,7 +302,8 @@ function buildFields(assets: AssetMoveInput[], intelligence: MarketIntelligenceR
 async function fetchPulseAssets(): Promise<AssetMoveInput[]> {
   const assets: AssetMoveInput[] = [];
 
-  for (const assetName of WATCHLIST) {
+  for (const registryAsset of getMarketPulseAssets()) {
+    const assetName = registryAsset.id;
     try {
       const quote = await getAssetPrice(assetName);
 

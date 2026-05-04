@@ -7,34 +7,24 @@ import {
   type MarketIntelligenceResult,
 } from '@leradar/market-intelligence';
 import { getAssetPrice } from '@leradar/market-data';
+import { ASSET_REGISTRY, getMarketPulseAssets } from '@leradar/market-data/assetRegistry';
 import { env } from '../config/env.js';
 import { createErrorEmbed, createInfoEmbed, formatUsd } from '../utils/embedFactory.js';
 import { logger } from '../utils/logger.js';
 
-const WATCHLIST = ['btc', 'eth', 'gold', 'eurusd', 'nasdaq', 'sp500', 'vix'];
-
-const ASSET_ALIASES: Record<string, string[]> = {
-  btc: ['btc', 'bitcoin', '₿'],
-  eth: ['eth', 'ethereum', 'ether'],
-  gold: ['gold', 'or', 'xau', 'xauusd', 'xau/usd'],
-  eurusd: ['eurusd', 'eur/usd', 'euro dollar', 'euro-dollar'],
-  nasdaq: ['nasdaq', 'ndx', 'ixic'],
-  sp500: ['sp500', 's&p500', 's&p 500', 'spx'],
-  vix: ['vix', 'volatilité', 'stress marché'],
-};
-
 function detectFocusedAsset(question: string): string | null {
   const normalized = question.toLowerCase();
 
-  for (const [asset, aliases] of Object.entries(ASSET_ALIASES)) {
-    if (aliases.some((alias) => normalized.includes(alias))) {
-      return asset;
+  for (const asset of ASSET_REGISTRY) {
+    const candidates = [asset.id, asset.displayName, ...asset.aliases];
+
+    if (candidates.some((candidate) => normalized.includes(candidate.toLowerCase()))) {
+      return asset.id;
     }
   }
 
   return null;
 }
-
 function formatPercent(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return 'N/A';
   const sign = value > 0 ? '+' : '';
@@ -154,7 +144,8 @@ function buildContextSummary(
 async function fetchAnalysisAssets(): Promise<AssetMoveInput[]> {
   const assets: AssetMoveInput[] = [];
 
-  for (const assetName of WATCHLIST) {
+  for (const registryAsset of getMarketPulseAssets()) {
+    const assetName = registryAsset.id;
     try {
       const quote = await getAssetPrice(assetName);
 
