@@ -1,6 +1,12 @@
 import { Client, TextChannel } from 'discord.js';
 import { prisma } from '@leradar/database';
 import { getAssetPrice } from '@leradar/market-data';
+import {
+  analyzeMarketContext,
+  type AssetMoveInput,
+  type MarketContextInput,
+  type MarketIntelligenceResult,
+} from '@leradar/market-intelligence';
 import { env } from '../config/env.js';
 import { EMBED_COLORS, createWarningEmbed } from '../utils/embedFactory.js';
 import { logger } from '../utils/logger.js';
@@ -14,6 +20,15 @@ type AlertRule = {
   thresholdPercent: number;
   strongPercent: number;
   criticalPercent: number;
+};
+
+type AlertCandidate = {
+  asset: AssetMoveInput;
+  rule: AlertRule;
+  importance: {
+    label: string;
+    color: (typeof EMBED_COLORS)[keyof typeof EMBED_COLORS];
+  };
 };
 
 const ALERT_RULES: Record<string, AlertRule> = {
@@ -31,15 +46,23 @@ function shouldSkipStatus(status: string): boolean {
 }
 
 function formatPercent(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return 'N/A';
+  if (value === null || !Number.isFinite(value)) return 'historique insuffisant';
   const sign = value > 0 ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
 }
 
-function formatPrice(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
+function formatPrice(asset: string, value: number): string {
+  const formatted = new Intl.NumberFormat('fr-FR', {
     maximumFractionDigits: value > 100 ? 2 : 5,
   }).format(value);
+
+  const key = asset.toLowerCase();
+
+  if (key.includes('gold')) return `${formatted} $ / oz`;
+  if (key.includes('eurusd')) return formatted;
+  if (key.includes('vix')) return formatted;
+
+  return `${formatted} $`;
 }
 
 function getRule(asset: string): AlertRule {
@@ -50,7 +73,7 @@ function getRule(asset: string): AlertRule {
   };
 }
 
-function getImportance(change: number, rule: AlertRule): { label: string; color: (typeof EMBED_COLORS)[keyof typeof EMBED_COLORS] } {
+function getImportance(change: number, rule: AlertRule): AlertCandidate['importance'] {
   const abs = Math.abs(change);
 
   if (abs >= rule.criticalPercent) {
@@ -109,16 +132,27 @@ function getTrendLabel(change: number | null): string {
   return 'neutre';
 }
 
-function getRadarReading(displayName: string, asset: string, change: number, rule: AlertRule): string {
+function getRadarReading(
+  displayName: string,
+  asset: string,
+  change: number,
+  rule: AlertRule,
+  intelligence?: MarketIntelligenceResult,
+): string {
   const abs = Math.abs(change);
   const direction = change > 0 ? 'progresse' : 'recule';
+  const key = asset.toLowerCase();
 
-  if (asset.toLowerCase().includes('vix')) {
+  if (key.includes('vix')) {
     if (change > 0) {
-      return `Le VIX monte, ce qui indique une hausse de la nervosité sur le marché. Le mouvement devient pertinent surtout s’il s’accompagne d’une baisse des indices.`;
+      return 'Le VIX monte, ce qui indique une hausse de la nervosité sur le marché. Le mouvement devient pertinent surtout s’il s’accompagne d’une baisse des indices.';
     }
 
-    return `Le VIX recule, ce qui indique une détente de la volatilité. Le contexte devient potentiellement plus calme si les indices restent stables ou progressent.`;
+    return 'Le VIX recule, ce qui indique une détente de la volatilité. Le contexte devient potentiellement plus calme si les indices restent stables ou progressent.';
+  }
+
+  if (key.includes('gold') && intelligence?.mood === 'risk-off' && change < 0) {
+    return 'L’or recule malgré un contexte global plus défensif. Le mouvement reste modéré, mais il mérite surveillance si la pression continue.';
   }
 
   if (abs < rule.strongPercent) {
@@ -137,10 +171,29 @@ function getWatchText(asset: string, change: number, rule: AlertRule): string {
   const nextLevel = rule.strongPercent;
 
   if (asset.toLowerCase().includes('vix')) {
-    return `À surveiller : confirmation si le VIX continue d’accélérer et si les indices US se dégradent en même temps.`;
+    return 'À surveiller : confirmation si le VIX continue d’accélérer et si les indices US se dégradent en même temps.';
   }
 
   return `À surveiller : confirmation si la ${direction} se poursuit et dépasse environ ${nextLevel}% sur les prochains relevés.`;
+}
+
+function getMoodLabel(mood: MarketIntelligenceResult['mood']): string {
+  switch (mood) {
+    case 'risk-on':
+      return '🟢 Risk-on';
+    case 'risk-off':
+      return '🔴 Risk-off';
+    case 'mixed':
+      return '🟡 Mitigé';
+    case 'neutral':
+    default:
+      return '⚪ Neutre';
+  }
+}
+
+function formatBulletList(items: string[], fallback: string): string {
+  if (items.length === 0) return fallback;
+  return items.slice(0, 2).map((item) => `- ${item}`).join('\n');
 }
 
 function canSendAlert(asset: string): boolean {
@@ -175,6 +228,24 @@ async function getSnapshotChange(asset: string, currentPrice: number, minutesAgo
   return ((currentPrice - snapshot.price) / snapshot.price) * 100;
 }
 
+function buildMarketContext(assets: AssetMoveInput[]): MarketContextInput {
+  const context: MarketContextInput = {};
+
+  for (const asset of assets) {
+    const key = asset.asset.toLowerCase();
+
+    if (key === 'btc') context.btc = asset;
+    if (key === 'eth') context.eth = asset;
+    if (key === 'gold') context.gold = asset;
+    if (key === 'eurusd') context.eurusd = asset;
+    if (key === 'nasdaq') context.nasdaq = asset;
+    if (key === 'sp500') context.sp500 = asset;
+    if (key === 'vix') context.vix = asset;
+  }
+
+  return context;
+}
+
 export async function runMarketAlertsJob(client: Client) {
   logger.info(
     {
@@ -199,6 +270,9 @@ export async function runMarketAlertsJob(client: Client) {
     logger.error('[ALERTS] Salon introuvable ou non textuel');
     return;
   }
+
+  const scannedAssets: AssetMoveInput[] = [];
+  const alertCandidates: AlertCandidate[] = [];
 
   for (const assetName of WATCHLIST) {
     try {
@@ -234,6 +308,18 @@ export async function runMarketAlertsJob(client: Client) {
       const change1h = await getSnapshotChange(asset.asset, asset.price, 60);
       const change24h = await getSnapshotChange(asset.asset, asset.price, 24 * 60);
 
+      const move: AssetMoveInput = {
+        asset: asset.asset,
+        displayName: asset.displayName,
+        price: asset.price,
+        changeShortTerm,
+        change1h,
+        change24h,
+        source: asset.source,
+      };
+
+      scannedAssets.push(move);
+
       const rule = getRule(asset.asset);
       const importance = getImportance(changeShortTerm, rule);
 
@@ -266,50 +352,11 @@ export async function runMarketAlertsJob(client: Client) {
         continue;
       }
 
-      const trend1h = getTrendLabel(change1h);
-      const trend24h = getTrendLabel(change24h);
-
-      const embed = createWarningEmbed({
-        title: getTitle(asset.displayName, asset.asset, changeShortTerm),
-        description: [
-          '📊 **Mouvement**',
-          `Prix : **${formatPrice(asset.price)}**`,
-          `Variation court terme : **${formatPercent(changeShortTerm)}**`,
-          `Variation 1h : **${formatPercent(change1h)}**`,
-          `Variation 24h : **${formatPercent(change24h)}**`,
-          '',
-          '🧭 **Lecture Radar**',
-          getRadarReading(asset.displayName, asset.asset, changeShortTerm, rule),
-          '',
-          '🌍 **Contexte marché**',
-          `Tendance 1h : **${trend1h}**`,
-          `Tendance 24h : **${trend24h}**`,
-          '',
-          '⚠️ **Importance**',
-          importance.label,
-          '',
-          '👀 **À surveiller**',
-          getWatchText(asset.asset, changeShortTerm, rule),
-          '',
-          `Source : **${asset.source}**`,
-          'Information éducative uniquement. Aucun conseil financier.',
-        ].join('\n'),
-        color: importance.color,
+      alertCandidates.push({
+        asset: move,
+        rule,
+        importance,
       });
-
-      await channel.send({ embeds: [embed] });
-      markAlertSent(asset.asset);
-
-      logger.warn(
-        {
-          asset: asset.asset,
-          changeShortTerm,
-          change1h,
-          change24h,
-          source: asset.source,
-        },
-        '[ALERTS] Alerte premium envoyée',
-      );
     } catch (error) {
       const err = error instanceof Error
         ? {
@@ -321,5 +368,77 @@ export async function runMarketAlertsJob(client: Client) {
 
       logger.error({ error: err, assetName }, '[ALERTS] Erreur job alertes marché');
     }
+  }
+
+  const intelligence = analyzeMarketContext(buildMarketContext(scannedAssets));
+
+  logger.info(
+    {
+      mood: intelligence.mood,
+      score: intelligence.score,
+      signals: intelligence.signals,
+    },
+    '[ALERTS] Intelligence marché calculée',
+  );
+
+  for (const candidate of alertCandidates) {
+    const { asset, rule, importance } = candidate;
+
+    const trend1h = getTrendLabel(asset.change1h);
+    const trend24h = getTrendLabel(asset.change24h);
+
+    const embed = createWarningEmbed({
+      title: getTitle(asset.displayName, asset.asset, asset.changeShortTerm),
+      description: [
+        '📊 **Mouvement**',
+        `Prix : **${formatPrice(asset.asset, asset.price)}**`,
+        `Variation court terme : **${formatPercent(asset.changeShortTerm)}**`,
+        `Variation 1h : **${formatPercent(asset.change1h)}**`,
+        `Variation 24h : **${formatPercent(asset.change24h)}**`,
+        '',
+        '🧭 **Lecture Radar**',
+        getRadarReading(asset.displayName, asset.asset, asset.changeShortTerm, rule, intelligence),
+        '',
+        '🧠 **Intelligence marché**',
+        `Contexte : **${getMoodLabel(intelligence.mood)}**`,
+        `Score Radar : **${intelligence.score} / 5**`,
+        '',
+        '**Facteurs de soutien :**',
+        formatBulletList(intelligence.factors, '- Aucun soutien clair détecté.'),
+        '',
+        '**Risques à surveiller :**',
+        formatBulletList(intelligence.risks, '- Aucun risque dominant détecté.'),
+        '',
+        '🌍 **Tendances**',
+        `Tendance 1h : **${trend1h}**`,
+        `Tendance 24h : **${trend24h}**`,
+        '',
+        '⚠️ **Importance**',
+        importance.label,
+        '',
+        '👀 **À surveiller**',
+        getWatchText(asset.asset, asset.changeShortTerm, rule),
+        '',
+        `Source : **${asset.source}**`,
+        'Information éducative uniquement. Aucun conseil financier.',
+      ].join('\n'),
+      color: importance.color,
+    });
+
+    await channel.send({ embeds: [embed] });
+    markAlertSent(asset.asset);
+
+    logger.warn(
+      {
+        asset: asset.asset,
+        changeShortTerm: asset.changeShortTerm,
+        change1h: asset.change1h,
+        change24h: asset.change24h,
+        mood: intelligence.mood,
+        score: intelligence.score,
+        source: asset.source,
+      },
+      '[ALERTS] Alerte premium intelligence envoyée',
+    );
   }
 }
