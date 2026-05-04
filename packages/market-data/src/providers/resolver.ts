@@ -1,20 +1,25 @@
-import { resolveMarketSymbol } from '../marketSymbolMap.js';
+import { resolveAsset } from '../assetRegistry.js';
 import { getCryptoQuote } from './crypto.js';
 import { getFmpIndexQuote } from './fmp.js';
 import { getTwelveDataQuote } from './twelveData.js';
 import { UnifiedMarketQuote } from './types.js';
 
-export async function getUnifiedQuote(asset: string): Promise<UnifiedMarketQuote | null> {
-  const symbol = resolveMarketSymbol(asset);
-  if (!symbol) return null;
+export async function getUnifiedQuote(assetInput: string): Promise<UnifiedMarketQuote | null> {
+  const asset = resolveAsset(assetInput);
 
-  if (symbol.kind === 'crypto') {
-    return getCryptoQuote(symbol.key, symbol.displayName, symbol.ticker);
+  if (!asset) return null;
+
+  if (asset.provider === 'coingecko') {
+    return getCryptoQuote(asset.id, asset.displayName, asset.providerSymbol);
   }
 
-  if (symbol.kind === 'indices') {
-    return getFmpIndexQuote(symbol.key, symbol.displayName, symbol.ticker);
+  if (asset.provider === 'fmp') {
+    return getFmpIndexQuote(asset.id, asset.displayName, asset.providerSymbol);
   }
 
-  return getTwelveDataQuote(symbol.key, symbol.displayName, symbol.ticker);
+  if (asset.provider === 'twelveData') {
+    return getTwelveDataQuote(asset.id, asset.displayName, asset.providerSymbol);
+  }
+
+  throw new Error(`Provider non supporté pour ${asset.id}: ${asset.provider}`);
 }
