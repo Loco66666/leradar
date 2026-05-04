@@ -15,6 +15,7 @@
     "@leradar/ai-engine": "workspace:*",
     "@leradar/database": "workspace:*",
     "@leradar/market-data": "workspace:*",
+    "@leradar/market-intelligence": "workspace:*",
     "discord.js": "^14.19.3",
     "pino": "^9.6.0"
   },

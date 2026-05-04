@@ -45,6 +45,9 @@ importers:
       '@leradar/market-data':
         specifier: workspace:*
         version: link:../../packages/market-data
+      '@leradar/market-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/market-intelligence
       discord.js:
         specifier: ^14.19.3
         version: 14.26.4
@@ -73,6 +76,16 @@ importers:
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
 
   packages/market-data: {}
+
+  packages/market-intelligence:
+    dependencies:
+      '@leradar/market-data':
+        specifier: workspace:*
+        version: link:../market-data
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
 

@@ -50,7 +50,7 @@ function getRule(asset: string): AlertRule {
   };
 }
 
-function getImportance(change: number, rule: AlertRule): { label: string; color: number } {
+function getImportance(change: number, rule: AlertRule): { label: string; color: (typeof EMBED_COLORS)[keyof typeof EMBED_COLORS] } {
   const abs = Math.abs(change);
 
   if (abs >= rule.criticalPercent) {
