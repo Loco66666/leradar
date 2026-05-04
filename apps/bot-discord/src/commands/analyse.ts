@@ -1,8 +1,183 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
 import { analyseMarketQuestion } from '@leradar/ai-engine';
+import {
+  analyzeMarketContext,
+  type AssetMoveInput,
+  type MarketContextInput,
+  type MarketIntelligenceResult,
+} from '@leradar/market-intelligence';
+import { getAssetPrice } from '@leradar/market-data';
 import { env } from '../config/env.js';
-import { createErrorEmbed, createInfoEmbed } from '../utils/embedFactory.js';
+import { createErrorEmbed, createInfoEmbed, formatUsd } from '../utils/embedFactory.js';
 import { logger } from '../utils/logger.js';
+
+const WATCHLIST = ['btc', 'eth', 'gold', 'eurusd', 'nasdaq', 'sp500', 'vix'];
+
+const ASSET_ALIASES: Record<string, string[]> = {
+  btc: ['btc', 'bitcoin', '₿'],
+  eth: ['eth', 'ethereum', 'ether'],
+  gold: ['gold', 'or', 'xau', 'xauusd', 'xau/usd'],
+  eurusd: ['eurusd', 'eur/usd', 'euro dollar', 'euro-dollar'],
+  nasdaq: ['nasdaq', 'ndx', 'ixic'],
+  sp500: ['sp500', 's&p500', 's&p 500', 'spx'],
+  vix: ['vix', 'volatilité', 'stress marché'],
+};
+
+function detectFocusedAsset(question: string): string | null {
+  const normalized = question.toLowerCase();
+
+  for (const [asset, aliases] of Object.entries(ASSET_ALIASES)) {
+    if (aliases.some((alias) => normalized.includes(alias))) {
+      return asset;
+    }
+  }
+
+  return null;
+}
+
+function formatPercent(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return 'N/A';
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+function formatPrice(asset: string, value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return 'N/A';
+
+  const key = asset.toLowerCase();
+
+  if (key === 'btc' || key === 'eth') return formatUsd(value);
+
+  const formatted = new Intl.NumberFormat('fr-FR', {
+    maximumFractionDigits: value > 100 ? 2 : 5,
+  }).format(value);
+
+  if (key === 'gold') return `${formatted} $/oz`;
+  if (key === 'eurusd') return formatted;
+  if (key === 'vix') return formatted;
+
+  return `${formatted} pts`;
+}
+
+function buildMarketContext(assets: AssetMoveInput[]): MarketContextInput {
+  const context: MarketContextInput = {};
+
+  for (const asset of assets) {
+    const key = asset.asset.toLowerCase();
+
+    if (key === 'btc') context.btc = asset;
+    if (key === 'eth') context.eth = asset;
+    if (key === 'gold') context.gold = asset;
+    if (key === 'eurusd') context.eurusd = asset;
+    if (key === 'nasdaq') context.nasdaq = asset;
+    if (key === 'sp500') context.sp500 = asset;
+    if (key === 'vix') context.vix = asset;
+  }
+
+  return context;
+}
+
+function getMoodLabel(mood: MarketIntelligenceResult['mood']): string {
+  switch (mood) {
+    case 'risk-on':
+      return 'constructif';
+    case 'risk-off':
+      return 'défensif';
+    case 'mixed':
+      return 'mitigé';
+    case 'neutral':
+    default:
+      return 'neutre';
+  }
+}
+
+function getAsset(assets: AssetMoveInput[], assetName: string): AssetMoveInput | undefined {
+  return assets.find((asset) => asset.asset.toLowerCase() === assetName);
+}
+
+function formatCorrelationContext(intelligence: MarketIntelligenceResult): string {
+  if (!intelligence.correlations.length) {
+    return '- Aucune corrélation dominante détectée.';
+  }
+
+  return intelligence.correlations
+    .slice(0, 4)
+    .map((correlation) => `- ${correlation.title} : ${correlation.summary} ${correlation.impact}`)
+    .join('\n');
+}
+
+function formatAssetsContext(assets: AssetMoveInput[]): string {
+  return assets
+    .map((asset) => {
+      const stressLabel = asset.asset === 'vix' ? 'stress marché' : asset.displayName;
+      return `- ${stressLabel} : ${formatPrice(asset.asset, asset.price)} | 24h ${formatPercent(asset.change24h)} | source ${asset.source}`;
+    })
+    .join('\n');
+}
+
+function buildContextSummary(
+  assets: AssetMoveInput[],
+  intelligence: MarketIntelligenceResult,
+  focusedAsset: string | null,
+): string {
+  const focused = focusedAsset ? getAsset(assets, focusedAsset) : null;
+
+  return [
+    `Climat marché : ${getMoodLabel(intelligence.mood)}`,
+    `Score Radar : ${intelligence.score} / 5`,
+    '',
+    'Résumé Le Radar :',
+    intelligence.summary,
+    '',
+    focused
+      ? `Actif ciblé détecté : ${focused.displayName} | Prix ${formatPrice(focused.asset, focused.price)} | 24h ${formatPercent(focused.change24h)}`
+      : 'Actif ciblé détecté : aucun actif précis',
+    '',
+    'Actifs suivis :',
+    formatAssetsContext(assets),
+    '',
+    'Facteurs de soutien :',
+    intelligence.factors.length
+      ? intelligence.factors.map((factor) => `- ${factor}`).join('\n')
+      : '- Aucun soutien clair détecté.',
+    '',
+    'Risques à surveiller :',
+    intelligence.risks.length
+      ? intelligence.risks.map((risk) => `- ${risk}`).join('\n')
+      : '- Aucun risque dominant détecté.',
+    '',
+    'Corrélations utiles :',
+    formatCorrelationContext(intelligence),
+  ].join('\n');
+}
+
+async function fetchAnalysisAssets(): Promise<AssetMoveInput[]> {
+  const assets: AssetMoveInput[] = [];
+
+  for (const assetName of WATCHLIST) {
+    try {
+      const quote = await getAssetPrice(assetName);
+
+      if (!quote || quote.price === null || quote.status === 'closed' || quote.status === 'unavailable') {
+        continue;
+      }
+
+      assets.push({
+        asset: quote.asset,
+        displayName: quote.displayName,
+        price: quote.price,
+        changeShortTerm: quote.change24h ?? 0,
+        change1h: null,
+        change24h: quote.change24h ?? null,
+        source: quote.source,
+      });
+    } catch (error) {
+      logger.warn({ error, assetName }, 'Contexte /analyse : actif ignoré');
+    }
+  }
+
+  return assets;
+}
 
 export const analyseCommand = {
   data: new SlashCommandBuilder()
@@ -21,10 +196,22 @@ export const analyseCommand = {
     try {
       await interaction.deferReply();
 
-      const answer = await analyseMarketQuestion(question, env.OPENAI_API_KEY);
+      const focusedAsset = detectFocusedAsset(question);
+      const assets = await fetchAnalysisAssets();
+      const intelligence = analyzeMarketContext(buildMarketContext(assets));
+      const marketContext = buildContextSummary(assets, intelligence, focusedAsset);
+
+      const answer = await analyseMarketQuestion(question, env.OPENAI_API_KEY, {
+        focusedAsset,
+        marketContext,
+      });
+
+      const focused = focusedAsset ? getAsset(assets, focusedAsset) : null;
 
       const embed = createInfoEmbed({
-        title: '🧠 Analyse Le Radar',
+        title: focused
+          ? `🧠 Analyse Radar — ${focused.displayName}`
+          : '🧠 Analyse Radar — Le Radar',
         description: answer,
       });
 
