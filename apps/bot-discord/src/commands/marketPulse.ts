@@ -240,6 +240,26 @@ function buildUsefulReading(intelligence: MarketIntelligenceResult): string {
   return 'Le marché reste équilibré. Aucun signal dominant ne ressort clairement pour l’instant.';
 }
 
+function formatCorrelationSeverity(severity: string): string {
+  if (severity === 'strong') return '🔴';
+  if (severity === 'watch') return '🟡';
+  return '🔵';
+}
+
+function buildCorrelationInsights(intelligence: MarketIntelligenceResult): string {
+  if (!intelligence.correlations || intelligence.correlations.length === 0) {
+    return 'Aucune corrélation dominante détectée pour le moment.';
+  }
+
+  return intelligence.correlations
+    .slice(0, 3)
+    .map((correlation) => {
+      const icon = formatCorrelationSeverity(correlation.severity);
+      return `${icon} **${correlation.title}** — ${correlation.summary}\n${correlation.impact}`;
+    })
+    .join('\n\n');
+}
+
 function buildFields(assets: AssetMoveInput[], intelligence: MarketIntelligenceResult): APIEmbedField[] {
   return [
     {
@@ -260,6 +280,11 @@ function buildFields(assets: AssetMoveInput[], intelligence: MarketIntelligenceR
     {
       name: '📌 Prix clés',
       value: buildPrices(assets),
+      inline: false,
+    },
+    {
+      name: '🔗 Corrélations utiles',
+      value: buildCorrelationInsights(intelligence),
       inline: false,
     },
     {

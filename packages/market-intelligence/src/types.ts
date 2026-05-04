@@ -14,6 +14,18 @@ export type IntelligenceSignal =
   | 'crypto_strength'
   | 'crypto_weakness';
 
+export type CorrelationSeverity = 'info' | 'watch' | 'strong';
+
+export type CorrelationInsight = {
+  id: string;
+  title: string;
+  summary: string;
+  impact: string;
+  severity: CorrelationSeverity;
+  confidence: number;
+  assets: string[];
+};
+
 export type AssetMoveInput = {
   asset: string;
   displayName: string;
@@ -41,4 +53,5 @@ export type MarketIntelligenceResult = {
   summary: string;
   factors: string[];
   risks: string[];
+  correlations: CorrelationInsight[];
 };

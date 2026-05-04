@@ -1,3 +1,4 @@
+import { analyzeCorrelations } from './analyzeCorrelations.js';
 import {
   AssetMoveInput,
   IntelligenceSignal,
@@ -33,7 +34,7 @@ function buildSummary(mood: MarketMood, factors: string[], risks: string[]): str
   if (mood === 'risk-off') {
     const mainRisks = risks.slice(0, 2).join(' ');
     const nuance = factors.length > 0
-      ? ` Certains éléments restent constructifs, mais ils ne suffisent pas à inverser le biais global.`
+      ? ' Certains éléments restent constructifs, mais ils ne suffisent pas à inverser le biais global.'
       : '';
 
     return `Le marché penche défensif. ${mainRisks || 'La pression globale reste supérieure aux facteurs de soutien.'}${nuance}`;
@@ -42,17 +43,17 @@ function buildSummary(mood: MarketMood, factors: string[], risks: string[]): str
   if (mood === 'risk-on') {
     const mainFactors = factors.slice(0, 2).join(' ');
     const nuance = risks.length > 0
-      ? ` Quelques risques restent présents, mais le biais global reste favorable au risque.`
+      ? ' Quelques risques restent présents, mais le biais global reste favorable au risque.'
       : '';
 
     return `Le marché montre un biais favorable au risque. ${mainFactors || 'Les actifs risqués restent globalement soutenus.'}${nuance}`;
   }
 
   if (mood === 'mixed') {
-    return `Le marché envoie des signaux contradictoires. Certains actifs restent soutenus, mais des risques persistent en parallèle.`;
+    return 'Le marché envoie des signaux contradictoires. Certains actifs restent soutenus, mais des risques persistent en parallèle.';
   }
 
-  return `Le marché ne montre pas encore de déséquilibre clair. Le contexte reste neutre à ce stade.`;
+  return 'Le marché ne montre pas encore de déséquilibre clair. Le contexte reste neutre à ce stade.';
 }
 
 export function analyzeMarketContext(input: MarketContextInput): MarketIntelligenceResult {
@@ -114,12 +115,12 @@ export function analyzeMarketContext(input: MarketContextInput): MarketIntellige
 
   if (vixUp) {
     score -= 2;
-    risks.push('Le VIX progresse, signe d’une nervosité plus élevée sur le marché.');
+    risks.push('Le stress marché progresse, signe d’une nervosité plus élevée.');
   }
 
   if (vixDown) {
     score += 1;
-    factors.push('Le VIX se détend, ce qui réduit la pression liée à la volatilité.');
+    factors.push('Le stress marché se détend, ce qui réduit la pression liée à la volatilité.');
   }
 
   if (eurusdUp) {
@@ -141,6 +142,7 @@ export function analyzeMarketContext(input: MarketContextInput): MarketIntellige
   }
 
   const mood = getMoodFromScore(score);
+  const correlations = analyzeCorrelations(input);
 
   return {
     mood,
@@ -149,5 +151,6 @@ export function analyzeMarketContext(input: MarketContextInput): MarketIntellige
     summary: buildSummary(mood, factors, risks),
     factors,
     risks,
+    correlations,
   };
 }
