@@ -600,6 +600,7 @@ export const ASSET_REGISTRY: AssetRegistryItem[] = [
     thresholds: { alert: 5, strong: 10, critical: 20 },
   },
 
+
   // =========================
   // Actions US majeures
   // =========================
