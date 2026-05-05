@@ -65,9 +65,34 @@ export function formatNumber(value: number | null, digits = 2): string {
 
 export function formatUsd(value: number | null): string {
   if (value === null || Number.isNaN(value)) return 'N/A';
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 2,
-  }).format(value);
+
+  if (value === 0) return '0 $US';
+
+  const abs = Math.abs(value);
+
+  if (abs >= 1) {
+    return `${new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)} $US`;
+  }
+
+  if (abs >= 0.01) {
+    return `${new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    }).format(value)} $US`;
+  }
+
+  if (abs >= 0.000001) {
+    return `${new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 8,
+      maximumFractionDigits: 8,
+    }).format(value)} $US`;
+  }
+
+  return `${new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 10,
+    maximumFractionDigits: 10,
+  }).format(value)} $US`;
 }
