@@ -1,6 +1,7 @@
 import { resolveAsset } from '../assetRegistry.js';
 import { getCryptoQuote } from './crypto.js';
 import { getFmpIndexQuote } from './fmp.js';
+import { getFmpCommodityQuote } from './fmpCommodities.js';
 import { getTwelveDataQuote } from './twelveData.js';
 import { UnifiedMarketQuote } from './types.js';
 
@@ -15,6 +16,10 @@ export async function getUnifiedQuote(assetInput: string): Promise<UnifiedMarket
 
   if (asset.provider === 'fmp') {
     return getFmpIndexQuote(asset.id, asset.displayName, asset.providerSymbol);
+  }
+
+  if (asset.provider === 'fmpCommodity') {
+    return getFmpCommodityQuote(asset.id, asset.displayName, asset.providerSymbol);
   }
 
   if (asset.provider === 'twelveData') {

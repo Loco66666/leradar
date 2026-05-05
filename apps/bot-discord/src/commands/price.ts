@@ -137,6 +137,12 @@ function formatMarketPrice(asset: string, price: number | null): string {
     }).format(price)} $ / oz`;
   }
 
+  if (asset === 'brent') {
+    return `${new Intl.NumberFormat('fr-FR', {
+      maximumFractionDigits: 2,
+    }).format(price)} $ / baril`;
+  }
+
   return formatUsd(price);
 }
 

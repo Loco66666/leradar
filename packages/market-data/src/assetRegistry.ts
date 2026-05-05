@@ -11,7 +11,8 @@ export type MarketDataProvider =
   | 'coingecko'
   | 'coinbase'
   | 'twelveData'
-  | 'fmp';
+  | 'fmp'
+  | 'fmpCommodity';
 
 export type AssetRegistryItem = {
   id: string;
@@ -528,16 +529,28 @@ export const ASSET_REGISTRY: AssetRegistryItem[] = [
   },
   {
     id: 'silver',
-    displayName: 'Argent (Silver)',
+    displayName: 'Argent Futures (Silver)',
     category: 'metals',
     aliases: ['silver', 'argent', 'xag', 'xagusd', 'xag/usd'],
-    provider: 'twelveData',
-    providerSymbol: 'XAG/USD',
+    provider: 'fmpCommodity',
+    providerSymbol: 'SIUSD',
     alertEnabled: false,
     marketPulseEnabled: false,
     thresholds: { alert: 0.8, strong: 1.8, critical: 3.5 },
   },
 
+
+  {
+    id: 'brent',
+    displayName: 'Pétrole Brent',
+    category: 'commodities',
+    aliases: ['brent', 'brent oil', 'uk oil', 'pétrole brent', 'petrole brent'],
+    provider: 'fmpCommodity',
+    providerSymbol: 'BZUSD',
+    alertEnabled: false,
+    marketPulseEnabled: false,
+    thresholds: { alert: 1.2, strong: 2.5, critical: 5 },
+  },
 
   // =========================
   // Indices
