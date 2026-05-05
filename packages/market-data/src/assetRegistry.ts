@@ -538,6 +538,7 @@ export const ASSET_REGISTRY: AssetRegistryItem[] = [
     thresholds: { alert: 0.8, strong: 1.8, critical: 3.5 },
   },
 
+
   // =========================
   // Indices
   // =========================

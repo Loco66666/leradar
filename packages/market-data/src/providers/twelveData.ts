@@ -19,6 +19,7 @@ const SYMBOL_CANDIDATES: Record<string, string[]> = {
   sp500: ['SPX', 'GSPC'],
   vix: ['VIX'],
   dxy: ['DXY'],
+
 };
 
 function toNumber(value: string | number | undefined): number | null {
@@ -38,7 +39,7 @@ function detectMarketStatus(asset: string): 'live' | 'delayed' | 'closed' {
     return 'live';
   }
 
-  if (['gold','silver','eurusd','gbpusd','usdjpy'].includes(asset)) {
+  if (['gold','silver','eurusd','gbpusd','usdjpy','usdchf','audusd','nzdusd','usdcad','eurgbp','eurjpy','gbpjpy','audjpy','cadjpy','chfjpy','eurchf','euraud','eurcad','gbpaud','gbpcad'].includes(asset)) {
     if (day === 6) return 'closed';
     if (day === 0 && hour < 22) return 'closed';
     if (day === 5 && hour >= 22) return 'closed';

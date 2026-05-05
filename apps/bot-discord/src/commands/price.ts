@@ -131,6 +131,12 @@ function formatMarketPrice(asset: string, price: number | null): string {
     }).format(price);
   }
 
+  if (['gold', 'silver'].includes(asset)) {
+    return `${new Intl.NumberFormat('fr-FR', {
+      maximumFractionDigits: 2,
+    }).format(price)} $ / oz`;
+  }
+
   return formatUsd(price);
 }
 
@@ -189,7 +195,7 @@ export const priceCommand = {
         await respond(interaction, {
           embeds: [
             createErrorEmbed(
-              'Actif non reconnu.\n\nExemples : btc, eth, sol, bnb, xrp, gold, silver, eurusd, gbpusd, usdjpy, nasdaq, sp500, dxy, vix',
+              'Actif non reconnu.\n\nExemples : btc, eth, sol, gold, silver, eurusd, gbpusd, usdjpy, nasdaq, sp500, nvda, qqq',
             ),
           ],
         });
