@@ -96,7 +96,26 @@ function formatCompact(value: number | null): string {
 function formatMarketPrice(asset: string, price: number | null): string {
   if (price === null) return 'N/A';
 
-  const forexAssets = ['eurusd', 'gbpusd', 'usdjpy'];
+  const forexAssets = [
+    'eurusd',
+    'gbpusd',
+    'usdjpy',
+    'usdchf',
+    'audusd',
+    'nzdusd',
+    'usdcad',
+    'eurgbp',
+    'eurjpy',
+    'gbpjpy',
+    'audjpy',
+    'cadjpy',
+    'chfjpy',
+    'eurchf',
+    'euraud',
+    'eurcad',
+    'gbpaud',
+    'gbpcad',
+  ];
   const indexAssets = ['nasdaq', 'sp500', 'dxy', 'vix'];
 
   if (forexAssets.includes(asset)) {
