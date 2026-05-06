@@ -4,6 +4,7 @@ import { getFreshCachedQuote, getStaleFallbackQuote, setCachedQuote } from '../q
 import { getCryptoQuote } from './crypto.js';
 import { getFmpIndexQuote } from './fmp.js';
 import { getFmpCommodityQuote } from './fmpCommodities.js';
+import { getFinnhubQuote } from './finnhub.js';
 import { getTwelveDataQuote } from './twelveData.js';
 import { UnifiedMarketQuote } from './types.js';
 
@@ -20,6 +21,10 @@ async function fetchProviderQuote(asset: ResolvedAsset): Promise<UnifiedMarketQu
 
   if (asset.provider === 'fmpCommodity') {
     return getFmpCommodityQuote(asset.id, asset.displayName, asset.providerSymbol);
+  }
+
+  if (asset.provider === 'finnhub') {
+    return getFinnhubQuote(asset.id, asset.displayName, asset.providerSymbol);
   }
 
   if (asset.provider === 'twelveData') {

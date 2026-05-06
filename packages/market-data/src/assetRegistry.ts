@@ -12,7 +12,8 @@ export type MarketDataProvider =
   | 'coinbase'
   | 'twelveData'
   | 'fmp'
-  | 'fmpCommodity';
+  | 'fmpCommodity'
+  | 'finnhub';
 
 export type AssetRegistryItem = {
   id: string;
@@ -609,12 +610,25 @@ export const ASSET_REGISTRY: AssetRegistryItem[] = [
     displayName: 'Apple',
     category: 'stocks',
     aliases: ['aapl', 'apple'],
-    provider: 'fmp',
+    provider: 'finnhub',
     providerSymbol: 'AAPL',
     alertEnabled: false,
     marketPulseEnabled: false,
     thresholds: { alert: 2, strong: 4, critical: 7 },
   },
+  {
+    id: 'nvda',
+    displayName: 'NVIDIA',
+    category: 'stocks',
+    aliases: ['nvda', 'nvidia'],
+    provider: 'finnhub',
+    providerSymbol: 'NVDA',
+    alertEnabled: false,
+    marketPulseEnabled: false,
+    thresholds: { alert: 3, strong: 6, critical: 10 },
+  },
+
+
   {
     id: 'msft',
     displayName: 'Microsoft',
@@ -625,17 +639,6 @@ export const ASSET_REGISTRY: AssetRegistryItem[] = [
     alertEnabled: false,
     marketPulseEnabled: false,
     thresholds: { alert: 2, strong: 4, critical: 7 },
-  },
-  {
-    id: 'nvda',
-    displayName: 'NVIDIA',
-    category: 'stocks',
-    aliases: ['nvda', 'nvidia'],
-    provider: 'fmp',
-    providerSymbol: 'NVDA',
-    alertEnabled: false,
-    marketPulseEnabled: false,
-    thresholds: { alert: 3, strong: 6, critical: 10 },
   },
   {
     id: 'tsla',
@@ -689,8 +692,8 @@ export const ASSET_REGISTRY: AssetRegistryItem[] = [
     id: 'spy',
     displayName: 'SPDR S&P 500 ETF',
     category: 'etf',
-    aliases: ['spy'],
-    provider: 'fmp',
+    aliases: ['spy', 'spdr s&p 500', 's&p 500 etf'],
+    provider: 'finnhub',
     providerSymbol: 'SPY',
     alertEnabled: false,
     marketPulseEnabled: false,
@@ -700,13 +703,26 @@ export const ASSET_REGISTRY: AssetRegistryItem[] = [
     id: 'qqq',
     displayName: 'Invesco QQQ ETF',
     category: 'etf',
-    aliases: ['qqq'],
-    provider: 'fmp',
+    aliases: ['qqq', 'invesco qqq', 'nasdaq etf'],
+    provider: 'finnhub',
     providerSymbol: 'QQQ',
     alertEnabled: false,
     marketPulseEnabled: false,
     thresholds: { alert: 1.2, strong: 2.5, critical: 5 },
   },
+  {
+    id: 'tlt',
+    displayName: 'iShares 20+ Year Treasury Bond ETF',
+    category: 'etf',
+    aliases: ['tlt', 'treasury bond etf', 'bonds', 'obligations us'],
+    provider: 'finnhub',
+    providerSymbol: 'TLT',
+    alertEnabled: false,
+    marketPulseEnabled: false,
+    thresholds: { alert: 1, strong: 2, critical: 4 },
+  },
+
+
   {
     id: 'gld',
     displayName: 'SPDR Gold Shares',
