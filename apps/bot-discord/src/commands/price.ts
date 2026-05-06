@@ -171,13 +171,28 @@ function formatDiscordTimestamp(timestamp: string): string {
   return `<t:${unix}:R>`;
 }
 
-async function respond(interaction: ChatInputCommandInteraction, payload: any) {
-  if (interaction.deferred || interaction.replied) {
-    await interaction.editReply(payload);
-    return;
-  }
+function isIgnorableDiscordInteractionError(error: unknown): boolean {
+  const code = (error as { code?: number })?.code;
 
-  await interaction.reply(payload);
+  return code === 10062 || code === 40060;
+}
+
+async function respond(interaction: ChatInputCommandInteraction, payload: any) {
+  try {
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply(payload);
+      return;
+    }
+
+    await interaction.reply(payload);
+  } catch (error) {
+    if (isIgnorableDiscordInteractionError(error)) {
+      logger.warn({ error }, 'Interaction Discord expirée ou déjà traitée');
+      return;
+    }
+
+    throw error;
+  }
 }
 
 export const priceCommand = {
@@ -195,6 +210,17 @@ export const priceCommand = {
     const asset = interaction.options.getString('asset', true).trim().toLowerCase();
 
     try {
+      try {
+        await interaction.deferReply();
+      } catch (error) {
+        if (isIgnorableDiscordInteractionError(error)) {
+          logger.warn({ error, asset }, 'Interaction /price expirée avant deferReply');
+          return;
+        }
+
+        throw error;
+      }
+
       const data = await getAssetPrice(asset);
 
       if (!data) {
