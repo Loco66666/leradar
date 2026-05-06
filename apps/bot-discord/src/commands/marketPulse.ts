@@ -16,6 +16,10 @@ function formatPercent(value: number | null): string {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+function isUsProxy(asset: string): boolean {
+  return ['nasdaq', 'sp500', 'dowjones'].includes(asset.toLowerCase());
+}
+
 function formatPrice(asset: string, value: number | null): string {
   if (value === null || !Number.isFinite(value)) return 'N/A';
 
@@ -30,6 +34,7 @@ function formatPrice(asset: string, value: number | null): string {
   if (key === 'gold') return `${formatted} $/oz`;
   if (key === 'eurusd') return formatted;
   if (key === 'vix') return formatted;
+  if (isUsProxy(key)) return `${formatted} $US`;
 
   return `${formatted} pts`;
 }
@@ -107,6 +112,20 @@ function priceAndMove(asset: AssetMoveInput | undefined): string {
   return `${formatPrice(asset.asset, asset.price)} · ${formatPercent(asset.change24h)}`;
 }
 
+function normalizeMarketPulseWording(text: string): string {
+  return text
+    .replace(/indices US/g, 'proxies US')
+    .replace(/Indices US/g, 'Proxies US')
+    .replace(/les indices/g, 'les proxies US')
+    .replace(/Les indices/g, 'Les proxies US')
+    .replace(/des indices/g, 'des proxies US')
+    .replace(/Des indices/g, 'Des proxies US')
+    .replace(/aux indices/g, 'aux proxies US')
+    .replace(/indices faibles/g, 'proxies US faibles')
+    .replace(/indices tiennent/g, 'proxies US tiennent')
+    .replace(/indices ne décrochent/g, 'proxies US ne décrochent');
+}
+
 function getMarketStress(assets: AssetMoveInput[]): string {
   const vix = getAsset(assets, 'vix');
   const change = vix?.change24h;
@@ -127,12 +146,12 @@ function buildExecutiveSummary(assets: AssetMoveInput[], intelligence: MarketInt
   const stress = getMarketStress(assets);
 
   const cryptoPositive = Boolean((btc?.change24h ?? 0) > 0 || (eth?.change24h ?? 0) > 0);
-  const indicesWeak = Boolean((nasdaq?.change24h ?? 0) < 0 || (sp500?.change24h ?? 0) < 0);
+  const proxiesWeak = Boolean((nasdaq?.change24h ?? 0) < 0 || (sp500?.change24h ?? 0) < 0);
   const dollarFirm = Boolean((eurusd?.change24h ?? 0) < -0.15);
 
   if (intelligence.mood === 'risk-off') {
     return [
-      `Le marché montre une attitude prudente : ${indicesWeak ? 'les indices US reculent' : 'les indices manquent de force'}, ${dollarFirm ? 'le dollar semble plus ferme' : 'le dollar ne donne pas encore de signal clair'}, et le stress marché est ${stress}.`,
+      `Le marché montre une attitude prudente : ${proxiesWeak ? 'les proxies US reculent' : 'les proxies US manquent de force'}, ${dollarFirm ? 'le dollar semble plus ferme' : 'le dollar ne donne pas encore de signal clair'}, et le stress marché est ${stress}.`,
       cryptoPositive
         ? 'Les cryptos résistent encore, mais le contexte global reste fragile.'
         : 'Les cryptos ne compensent pas la pression observée sur le reste du marché.',
@@ -142,7 +161,7 @@ function buildExecutiveSummary(assets: AssetMoveInput[], intelligence: MarketInt
   if (intelligence.mood === 'risk-on') {
     return [
       'Le marché montre un climat plus constructif : les actifs risqués sont mieux orientés et la pression globale reste contenue.',
-      'Le contexte reste favorable tant que les indices tiennent et que le stress marché ne réaccélère pas.',
+      'Le contexte reste favorable tant que les proxies US tiennent et que le stress marché ne réaccélère pas.',
     ].join(' ');
   }
 
@@ -167,7 +186,7 @@ function buildKeyTakeaways(assets: AssetMoveInput[]): string {
   const points: string[] = [];
 
   if ((nasdaq?.change24h ?? 0) < 0 || (sp500?.change24h ?? 0) < 0) {
-    points.push(`• Les indices US sont sous pression : Nasdaq ${moveText(nasdaq)}, S&P500 ${moveText(sp500)}.`);
+    points.push(`• Les proxies US sont sous pression : QQQ ${moveText(nasdaq)}, SPY ${moveText(sp500)}.`);
   }
 
   if ((eurusd?.change24h ?? 0) < -0.15) {
@@ -199,7 +218,7 @@ function buildQuickView(assets: AssetMoveInput[]): string {
 
   return [
     `**Crypto** : BTC ${moveText(btc)} · ETH ${moveText(eth)}`,
-    `**Indices US** : Nasdaq ${moveText(nasdaq)} · S&P500 ${moveText(sp500)}`,
+    `**Proxies US** : QQQ ${moveText(nasdaq)} · SPY ${moveText(sp500)}`,
     `**Dollar** : EUR/USD ${moveText(eurusd)}`,
     `**Or** : Gold ${moveText(gold)}`,
     `**Stress marché** : ${getMarketStress(assets)}`,
@@ -219,22 +238,22 @@ function buildPrices(assets: AssetMoveInput[]): string {
     `♦️ ETH : ${priceAndMove(eth)}`,
     `🥇 Gold : ${priceAndMove(gold)}`,
     `💱 EUR/USD : ${priceAndMove(eurusd)}`,
-    `📊 Nasdaq : ${priceAndMove(nasdaq)}`,
-    `🇺🇸 S&P500 : ${priceAndMove(sp500)}`,
+    `📊 Proxy Nasdaq / QQQ : ${priceAndMove(nasdaq)}`,
+    `🇺🇸 Proxy S&P 500 / SPY : ${priceAndMove(sp500)}`,
   ].join('\n');
 }
 
 function buildUsefulReading(intelligence: MarketIntelligenceResult): string {
   if (intelligence.mood === 'risk-off') {
-    return 'Le signal dominant reste défensif. Une amélioration viendrait surtout d’un rebond des indices et d’une baisse du stress marché.';
+    return 'Le signal dominant reste défensif. Une amélioration viendrait surtout d’un rebond des proxies US et d’une baisse du stress marché.';
   }
 
   if (intelligence.mood === 'risk-on') {
-    return 'Le signal dominant reste constructif. Le contexte se dégraderait surtout si les indices perdaient leur soutien ou si le stress marché repartait à la hausse.';
+    return 'Le signal dominant reste constructif. Le contexte se dégraderait surtout si les proxies US perdaient leur soutien ou si le stress marché repartait à la hausse.';
   }
 
   if (intelligence.mood === 'mixed') {
-    return 'Le marché manque d’alignement. Il vaut mieux attendre une confirmation des indices, du dollar ou du stress marché.';
+    return 'Le marché manque d’alignement. Il vaut mieux attendre une confirmation des proxies US, du dollar ou du stress marché.';
   }
 
   return 'Le marché reste équilibré. Aucun signal dominant ne ressort clairement pour l’instant.';
@@ -255,7 +274,10 @@ function buildCorrelationInsights(intelligence: MarketIntelligenceResult): strin
     .slice(0, 3)
     .map((correlation) => {
       const icon = formatCorrelationSeverity(correlation.severity);
-      return `${icon} **${correlation.title}** — ${correlation.summary}\n${correlation.impact}`;
+      const title = normalizeMarketPulseWording(correlation.title);
+      const summary = normalizeMarketPulseWording(correlation.summary);
+      const impact = normalizeMarketPulseWording(correlation.impact);
+      return `${icon} **${title}** — ${summary}\n${impact}`;
     })
     .join('\n\n');
 }
