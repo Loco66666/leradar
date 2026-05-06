@@ -8,6 +8,7 @@ import {
 import { getAssetPrice } from '@leradar/market-data';
 import { getMarketPulseAssets } from '@leradar/market-data/assetRegistry';
 import { createErrorEmbed, createMarketEmbed, formatUsd } from '../utils/embedFactory.js';
+import { logger } from '../utils/logger.js';
 
 function formatPercent(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return 'N/A';
@@ -328,6 +329,30 @@ async function fetchPulseAssets(): Promise<AssetMoveInput[]> {
   return assets;
 }
 
+function isIgnorableDiscordInteractionError(error: unknown): boolean {
+  const code = (error as { code?: number })?.code;
+
+  return code === 10062 || code === 40060;
+}
+
+async function safeRespond(interaction: ChatInputCommandInteraction, payload: any): Promise<void> {
+  try {
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply(payload);
+      return;
+    }
+
+    await interaction.reply(payload);
+  } catch (error) {
+    if (isIgnorableDiscordInteractionError(error)) {
+      logger.warn({ error }, 'Interaction Discord /market-pulse expirée ou déjà traitée');
+      return;
+    }
+
+    throw error;
+  }
+}
+
 export const marketPulseCommand = {
   data: new SlashCommandBuilder()
     .setName('market-pulse')
@@ -335,7 +360,16 @@ export const marketPulseCommand = {
 
   async execute(interaction: ChatInputCommandInteraction) {
     try {
-      await interaction.deferReply();
+      try {
+        await interaction.deferReply();
+      } catch (error) {
+        if (isIgnorableDiscordInteractionError(error)) {
+          logger.warn({ error }, 'Interaction /market-pulse expirée avant deferReply');
+          return;
+        }
+
+        throw error;
+      }
 
       const assets = await fetchPulseAssets();
       const intelligence = analyzeMarketContext(buildMarketContext(assets));
@@ -352,16 +386,11 @@ export const marketPulseCommand = {
         fields: buildFields(assets, intelligence),
       });
 
-      await interaction.editReply({ embeds: [embed] });
-    } catch {
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({
-          embeds: [createErrorEmbed('Impossible de construire le radar marché pour le moment.')],
-        });
-        return;
-      }
+      await safeRespond(interaction, { embeds: [embed] });
+    } catch (error) {
+      logger.error({ error }, 'Erreur commande /market-pulse');
 
-      await interaction.reply({
+      await safeRespond(interaction, {
         embeds: [createErrorEmbed('Impossible de construire le radar marché pour le moment.')],
       });
     }

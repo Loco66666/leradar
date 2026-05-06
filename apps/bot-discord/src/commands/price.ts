@@ -116,7 +116,7 @@ function formatMarketPrice(asset: string, price: number | null): string {
     'gbpaud',
     'gbpcad',
   ];
-  const indexAssets = ['nasdaq', 'sp500', 'dxy', 'vix'];
+  const indexAssets = ['dxy', 'vix'];
 
   if (forexAssets.includes(asset)) {
     return new Intl.NumberFormat('fr-FR', {
@@ -147,9 +147,12 @@ function formatMarketPrice(asset: string, price: number | null): string {
 }
 
 function formatSource(source: string): string {
-  if (source.includes('(QQQ)')) return 'Twelve Data • Proxy Nasdaq via QQQ';
-  if (source.includes('(SPY)')) return 'Twelve Data • Proxy S&P 500 via SPY';
+  if (source.includes('Finnhub (QQQ)')) return 'Finnhub • Proxy Nasdaq via QQQ';
+  if (source.includes('Finnhub (SPY)')) return 'Finnhub • Proxy S&P 500 via SPY';
+  if (source.includes('Finnhub (DIA)')) return 'Finnhub • Proxy Dow Jones via DIA';
+
   if (source.includes('(VIXY)')) return 'Twelve Data • Proxy volatilité via VIXY';
+
   return source;
 }
 
