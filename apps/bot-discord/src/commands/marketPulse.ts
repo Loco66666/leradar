@@ -8,6 +8,14 @@ import {
 import { getAssetPrice } from '@leradar/market-data';
 import { getMarketPulseAssets } from '@leradar/market-data/assetRegistry';
 import { createErrorEmbed, createMarketEmbed, formatUsd } from '../utils/embedFactory.js';
+import {
+  formatMarketPulseProxyPrice,
+  getMarketPulseDetailLabel,
+  getMarketPulseShortLabel,
+  protectMarketPulsePriceKeysValue,
+  protectMarketPulseQuickViewValue,
+  type MarketPulseUsProxyAsset,
+} from './marketPulsePresentation.js';
 import { logger } from '../utils/logger.js';
 
 function formatPercent(value: number | null): string {
@@ -26,6 +34,10 @@ function formatPrice(asset: string, value: number | null): string {
   const formatted = new Intl.NumberFormat('fr-FR', {
     maximumFractionDigits: value > 100 ? 2 : 5,
   }).format(value);
+
+  const proxyPrice = formatMarketPulseProxyPrice(key, value);
+
+  if (proxyPrice) return proxyPrice;
 
   if (key === 'gold') return `${formatted} $/oz`;
   if (key === 'eurusd') return formatted;
@@ -102,9 +114,31 @@ function moveText(asset: AssetMoveInput | undefined): string {
   return formatPercent(asset.change24h);
 }
 
-function priceAndMove(asset: AssetMoveInput | undefined): string {
-  if (!asset) return 'N/A';
-  return `${formatPrice(asset.asset, asset.price)} · ${formatPercent(asset.change24h)}`;
+function priceAndMove(asset: AssetMoveInput | undefined, displayAsset = asset?.asset): string {
+  if (!asset || !displayAsset) return 'N/A';
+  return `${formatPrice(displayAsset, asset.price)} · ${formatPercent(asset.change24h)}`;
+}
+
+function proxyMoveText(assetName: MarketPulseUsProxyAsset, asset: AssetMoveInput | undefined): string {
+  return `${getMarketPulseShortLabel(assetName)} ${moveText(asset)}`;
+}
+
+function proxyPriceLine(icon: string, assetName: MarketPulseUsProxyAsset, asset: AssetMoveInput | undefined): string {
+  return `${icon} ${getMarketPulseDetailLabel(assetName)} : ${priceAndMove(asset, assetName)}`;
+}
+
+function normalizeMarketPulseWording(text: string): string {
+  return text
+    .replace(/indices US/g, 'proxies US')
+    .replace(/Indices US/g, 'Proxies US')
+    .replace(/les indices/g, 'les proxies US')
+    .replace(/Les indices/g, 'Les proxies US')
+    .replace(/des indices/g, 'des proxies US')
+    .replace(/Des indices/g, 'Des proxies US')
+    .replace(/aux indices/g, 'aux proxies US')
+    .replace(/indices faibles/g, 'proxies US faibles')
+    .replace(/indices tiennent/g, 'proxies US tiennent')
+    .replace(/indices ne décrochent/g, 'proxies US ne décrochent');
 }
 
 function getMarketStress(assets: AssetMoveInput[]): string {
@@ -127,12 +161,12 @@ function buildExecutiveSummary(assets: AssetMoveInput[], intelligence: MarketInt
   const stress = getMarketStress(assets);
 
   const cryptoPositive = Boolean((btc?.change24h ?? 0) > 0 || (eth?.change24h ?? 0) > 0);
-  const indicesWeak = Boolean((nasdaq?.change24h ?? 0) < 0 || (sp500?.change24h ?? 0) < 0);
+  const proxiesWeak = Boolean((nasdaq?.change24h ?? 0) < 0 || (sp500?.change24h ?? 0) < 0);
   const dollarFirm = Boolean((eurusd?.change24h ?? 0) < -0.15);
 
   if (intelligence.mood === 'risk-off') {
     return [
-      `Le marché montre une attitude prudente : ${indicesWeak ? 'les indices US reculent' : 'les indices manquent de force'}, ${dollarFirm ? 'le dollar semble plus ferme' : 'le dollar ne donne pas encore de signal clair'}, et le stress marché est ${stress}.`,
+      `Le marché montre une attitude prudente : ${proxiesWeak ? 'les proxies US reculent' : 'les proxies US manquent de force'}, ${dollarFirm ? 'le dollar semble plus ferme' : 'le dollar ne donne pas encore de signal clair'}, et le stress marché est ${stress}.`,
       cryptoPositive
         ? 'Les cryptos résistent encore, mais le contexte global reste fragile.'
         : 'Les cryptos ne compensent pas la pression observée sur le reste du marché.',
@@ -142,7 +176,7 @@ function buildExecutiveSummary(assets: AssetMoveInput[], intelligence: MarketInt
   if (intelligence.mood === 'risk-on') {
     return [
       'Le marché montre un climat plus constructif : les actifs risqués sont mieux orientés et la pression globale reste contenue.',
-      'Le contexte reste favorable tant que les indices tiennent et que le stress marché ne réaccélère pas.',
+      'Le contexte reste favorable tant que les proxies US tiennent et que le stress marché ne réaccélère pas.',
     ].join(' ');
   }
 
@@ -163,11 +197,18 @@ function buildKeyTakeaways(assets: AssetMoveInput[]): string {
   const eurusd = getAsset(assets, 'eurusd');
   const nasdaq = getAsset(assets, 'nasdaq');
   const sp500 = getAsset(assets, 'sp500');
+  const dowjones = getAsset(assets, 'dowjones');
 
   const points: string[] = [];
 
-  if ((nasdaq?.change24h ?? 0) < 0 || (sp500?.change24h ?? 0) < 0) {
-    points.push(`• Les indices US sont sous pression : Nasdaq ${moveText(nasdaq)}, S&P500 ${moveText(sp500)}.`);
+  if ((nasdaq?.change24h ?? 0) < 0 || (sp500?.change24h ?? 0) < 0 || (dowjones?.change24h ?? 0) < 0) {
+    const proxyMoves = [
+      proxyMoveText('nasdaq', nasdaq),
+      proxyMoveText('sp500', sp500),
+      ...(dowjones ? [proxyMoveText('dowjones', dowjones)] : []),
+    ].join(', ');
+
+    points.push(`• Les proxies US sont sous pression : ${proxyMoves}.`);
   }
 
   if ((eurusd?.change24h ?? 0) < -0.15) {
@@ -196,10 +237,16 @@ function buildQuickView(assets: AssetMoveInput[]): string {
   const eurusd = getAsset(assets, 'eurusd');
   const nasdaq = getAsset(assets, 'nasdaq');
   const sp500 = getAsset(assets, 'sp500');
+  const dowjones = getAsset(assets, 'dowjones');
+  const proxyMoves = [
+    proxyMoveText('nasdaq', nasdaq),
+    proxyMoveText('sp500', sp500),
+    ...(dowjones ? [proxyMoveText('dowjones', dowjones)] : []),
+  ].join(' · ');
 
   return [
     `**Crypto** : BTC ${moveText(btc)} · ETH ${moveText(eth)}`,
-    `**Indices US** : Nasdaq ${moveText(nasdaq)} · S&P500 ${moveText(sp500)}`,
+    `**Proxies US** : ${proxyMoves}`,
     `**Dollar** : EUR/USD ${moveText(eurusd)}`,
     `**Or** : Gold ${moveText(gold)}`,
     `**Stress marché** : ${getMarketStress(assets)}`,
@@ -213,28 +260,34 @@ function buildPrices(assets: AssetMoveInput[]): string {
   const eurusd = getAsset(assets, 'eurusd');
   const nasdaq = getAsset(assets, 'nasdaq');
   const sp500 = getAsset(assets, 'sp500');
+  const dowjones = getAsset(assets, 'dowjones');
+
+  const proxyPriceLines = [
+    proxyPriceLine('📊', 'nasdaq', nasdaq),
+    proxyPriceLine('🇺🇸', 'sp500', sp500),
+    ...(dowjones ? [proxyPriceLine('📊', 'dowjones', dowjones)] : []),
+  ];
 
   return [
     `₿ BTC : ${priceAndMove(btc)}`,
     `♦️ ETH : ${priceAndMove(eth)}`,
     `🥇 Gold : ${priceAndMove(gold)}`,
     `💱 EUR/USD : ${priceAndMove(eurusd)}`,
-    `📊 Nasdaq : ${priceAndMove(nasdaq)}`,
-    `🇺🇸 S&P500 : ${priceAndMove(sp500)}`,
+    ...proxyPriceLines,
   ].join('\n');
 }
 
 function buildUsefulReading(intelligence: MarketIntelligenceResult): string {
   if (intelligence.mood === 'risk-off') {
-    return 'Le signal dominant reste défensif. Une amélioration viendrait surtout d’un rebond des indices et d’une baisse du stress marché.';
+    return 'Le signal dominant reste défensif. Une amélioration viendrait surtout d’un rebond des proxies US et d’une baisse du stress marché.';
   }
 
   if (intelligence.mood === 'risk-on') {
-    return 'Le signal dominant reste constructif. Le contexte se dégraderait surtout si les indices perdaient leur soutien ou si le stress marché repartait à la hausse.';
+    return 'Le signal dominant reste constructif. Le contexte se dégraderait surtout si les proxies US perdaient leur soutien ou si le stress marché repartait à la hausse.';
   }
 
   if (intelligence.mood === 'mixed') {
-    return 'Le marché manque d’alignement. Il vaut mieux attendre une confirmation des indices, du dollar ou du stress marché.';
+    return 'Le marché manque d’alignement. Il vaut mieux attendre une confirmation des proxies US, du dollar ou du stress marché.';
   }
 
   return 'Le marché reste équilibré. Aucun signal dominant ne ressort clairement pour l’instant.';
@@ -255,9 +308,28 @@ function buildCorrelationInsights(intelligence: MarketIntelligenceResult): strin
     .slice(0, 3)
     .map((correlation) => {
       const icon = formatCorrelationSeverity(correlation.severity);
-      return `${icon} **${correlation.title}** — ${correlation.summary}\n${correlation.impact}`;
+      const title = normalizeMarketPulseWording(correlation.title);
+      const summary = normalizeMarketPulseWording(correlation.summary);
+      const impact = normalizeMarketPulseWording(correlation.impact);
+      return `${icon} **${title}** — ${summary}\n${impact}`;
     })
     .join('\n\n');
+}
+
+function protectMarketPulseField(field: APIEmbedField): APIEmbedField {
+  if (field.name === '📊 Vue rapide') {
+    return { ...field, value: protectMarketPulseQuickViewValue(field.value) };
+  }
+
+  if (field.name === '📌 Prix clés') {
+    return { ...field, value: protectMarketPulsePriceKeysValue(field.value) };
+  }
+
+  if (['🧭 Lecture rapide', '🔥 À retenir', '🔗 Corrélations utiles', '🎯 Lecture Radar'].includes(field.name)) {
+    return { ...field, value: normalizeMarketPulseWording(field.value) };
+  }
+
+  return field;
 }
 
 function buildFields(assets: AssetMoveInput[], intelligence: MarketIntelligenceResult): APIEmbedField[] {
@@ -297,7 +369,7 @@ function buildFields(assets: AssetMoveInput[], intelligence: MarketIntelligenceR
       value: formatSources(assets),
       inline: false,
     },
-  ];
+  ].map(protectMarketPulseField);
 }
 
 async function fetchPulseAssets(): Promise<AssetMoveInput[]> {
